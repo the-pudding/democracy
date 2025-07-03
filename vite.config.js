@@ -27,6 +27,11 @@ export default defineConfig({
 			$utils: path.resolve("./src/utils")
 		}
 	},
+	server: {
+		watch: {
+			ignored: ['**/static/assets/pages/**']
+		}
+	},
 	ssr: {
 		noExternal: ["bits-ui"]
 	}

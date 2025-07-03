@@ -5,3 +5,6 @@ node_modules
 build
 functions
 .env
+static/assets/pages/
+democracy.sublime-project
+democracy.sublime-workspace

@@ -82,6 +82,6 @@
 
 </script>
 
-<div bind:this={container}>
+<div class="scrollyContainer" bind:this={container}>
 	{@render children?.()}
 </div>

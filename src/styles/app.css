@@ -36,6 +36,9 @@
 	--color-input-fg: var(--color-gray-900);
 	--color-placeholder: var(--color-gray-500);
 
+	--barBg: #ffffff;
+
+	--text-bg: #ffffff;
 	/* "1" second duration */
 	--1s: 1ms;
 }
@@ -76,9 +79,235 @@ h5 {
 h6 {
 	font-size: var(--20px, 20px);
 }
-
+body {
+	font-family: var(--mono);
+}
 svg {
 	display: block;
 	width: 100%;
 	height: auto;
+}
+
+
+#scrolly {
+	-webkit-overflow-scrolling: touch;
+	overflow-scrolling: touch;
+}
+.scrollyContainer {
+	padding-bottom: 100vh;
+}
+.visualContainer {
+	position: sticky;
+	top: 0;
+	left: 0;
+	/* width: calc(100% - 120px); */
+	width: 100%;
+	/* max-width: 1800px; */
+	overflow: hidden;
+	/* margin: 0 auto; */
+	height: 100vh;
+	height: calc(var(--vh, 1vh) * 100);
+	contain: layout style paint;
+	/* Add GPU acceleration for better scrolling performance */
+	will-change: transform;
+	transform: translateZ(0);
+
+	/* max-width: 1200px; */
+	/* text-align: center; */
+	/* border: 1px solid black; */
+}
+
+.textContainer {
+	width: 400px;
+	max-width: 95%;
+	background: var(--text-bg);
+	border: 1px solid #000;
+	color: var(--text-color);
+	margin: 0px auto;
+	padding: 5px 20px;
+	text-align: left;
+	pointer-events: auto;
+	position: relative;
+	transform: translateZ(0);
+	backface-visibility: hidden;
+	-webkit-backface-visibility: hidden;
+	/* Optimize for animations */
+	will-change: transform, opacity;
+}
+
+.step {
+	position: relative;
+	contain: layout style;
+	/* Remove transform to prevent reflow */
+	transform: none;
+	height: auto;
+	min-height: 30px;
+	padding: 0px 0;
+	margin: 0vh auto;
+	text-align: center;
+	font-size: 17px;
+	line-height: 25px;
+	pointer-events: none;
+	/* Prevent text selection which can cause jumps */
+	-webkit-user-select: none;
+	user-select: none;
+	/* Optimize for state changes */
+	will-change: opacity, transform;
+
+}
+.step:last-child{
+	height: 100vh;
+}
+.step.pretext{
+	height: 50vh;
+}
+.step.smallText .textContainer {
+	margin: 20px auto;
+}
+.step.time {
+	font-size: 10px;
+	color: #999;
+}
+.step.active.time, .step.active .time {
+	font-weight: bold;
+	font-size: 11px;
+	color: #000;
+}
+.time {
+	width: calc(100% - 5px);
+	text-align: right;
+	margin-right: 5px;
+	z-index: 10;
+	font-size: 11px;
+	font-family: var(--mono);
+	color: var(--person-default-bg);
+	/* Smooth transitions for active states */
+	transition: font-size var(--animation-duration) var(--animation-timing),
+	font-weight var(--animation-duration) var(--animation-timing);
+	opacity: 0;
+	/* border-bottom: 1px solid red; */
+	user-select: none;
+}
+.step.bigText {
+	background: var(--bigtext-bg);
+	padding: 90px 0;
+	min-height: 100vh;
+	position: relative;
+	margin: 200px 0;
+}
+.step.bigText strong {
+	color: white;
+	font-weight: 600;
+}
+.step a {
+	color: var(--text-link-color);
+	/* Smooth hover transitions */
+	transition: color var(--animation-duration) var(--animation-timing);
+}
+.step a:hover {
+	transition-duration: 150ms; /* Faster hover response */
+}
+.byline a {
+	color: var(--text-link-color);
+	text-decoration: none;
+	transition: color var(--animation-duration) var(--animation-timing);
+}
+/* .step.bigText.active .time {
+	font-size: 15px;
+	font-weight: bold;
+} */
+
+/* Top gradient - transparent to white */
+.step.bigText::before {
+	content: "";
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	width: 100%;
+	height: 200px;
+	z-index: -1;
+	background: linear-gradient(to bottom, transparent 0%, var(--bigtext-bg) 100%);
+}
+
+/* Bottom gradient - white to transparent */
+.step.bigText::after {
+	content: "";
+	position: absolute;
+	top: 100%;
+	left: 0;
+	width: 100%;
+	height: 200px;
+	z-index: -1;
+	background: linear-gradient(to top, transparent 0%, var(--bigtext-bg) 100%);
+}
+
+
+/*------------------------------
+MAIN TEXT AREA
+------------------------------*/
+.transcriptContainer {
+	height: 100%;
+	position: absolute;
+	width: calc(100% - 120px);
+	/* max-width: 500px; */
+/* 	left: 50%;
+	transform: translateX(-50%); */
+}
+.transcriptText {
+    color: #ccc;
+    font-size: 20px;
+    margin: 80px 0 10px 10px;
+    width: 100%;
+    font-family: 'SF Mono', Menlo, 'Courier New', monospace;
+    font-weight: 300;
+    white-space: pre; /* Preserve exact spacing and line breaks */
+    line-height: 1.4; /* Match your charHeight calculation */
+    letter-spacing: 0;
+    word-spacing: 0;
+    font-kerning: none;
+    text-rendering: geometricPrecision;
+    overflow: hidden; /* Hide any overflow */
+}
+
+.hl_word {
+	/* background-color: yellow; */
+	color: black;
+	font-weight: bold;
+}
+.democracy-row {
+	color:  black;
+}
+
+.onedegree {
+    color:  #888;
+}
+
+.twodegree {
+   color:  #aaa;
+}
+.instanceData {
+	position: absolute;
+	/* background: black; */
+	top: 0;
+	left: 0%;
+	width: 100%;
+	text-align: center;
+	z-index: 10;
+	color: black;
+	text-transform: uppercase;
+	font-size: 16px;
+	line-height: 1.4em;
+	font-weight: bold;
+}
+
+.byline {
+	text-align: center;
+	width: 100%;
+	margin-left: 4%;
+	font-size: 15px;
+	margin-top: 10px;
+	color: #888;
+}
+.byline a {
+	color: #e010ac;
 }

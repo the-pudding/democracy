@@ -248,7 +248,7 @@ MAIN TEXT AREA
 .transcriptContainer {
 	height: 100%;
 	position: absolute;
-	width: calc(100% - 120px);
+	width: calc(100% - 140px);
 	/* max-width: 500px; */
 /* 	left: 50%;
 	transform: translateX(-50%); */

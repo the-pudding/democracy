@@ -5,7 +5,7 @@ node_modules
 build
 functions
 .env
-static/assets/pages/
+static/assets/pages/*
 democracy.sublime-project
 democracy.sublime-workspace
-src/data/
+src/data/*

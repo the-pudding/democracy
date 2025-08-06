@@ -140,11 +140,11 @@ svg {
 	contain: layout style;
 	/* Remove transform to prevent reflow */
 	transform: none;
-	height: auto;
+	height: 50px;
 	min-height: 30px;
 	padding: 0px 0;
 	margin: 0vh auto;
-	text-align: center;
+	text-align: left;
 	font-size: 17px;
 	line-height: 25px;
 	pointer-events: none;
@@ -153,13 +153,11 @@ svg {
 	user-select: none;
 	/* Optimize for state changes */
 	will-change: opacity, transform;
+	/* border-top: 1px solid red; */
 
 }
 .step:last-child{
-	height: 100vh;
-}
-.step.pretext{
-	height: 50vh;
+	height: 500px;
 }
 .step.smallText .textContainer {
 	margin: 20px auto;
@@ -173,6 +171,9 @@ svg {
 	font-size: 11px;
 	color: #000;
 }
+.step.story {
+	height:  1000px;
+}
 .time {
 	width: calc(100% - 5px);
 	text-align: right;
@@ -184,8 +185,7 @@ svg {
 	/* Smooth transitions for active states */
 	transition: font-size var(--animation-duration) var(--animation-timing),
 	font-weight var(--animation-duration) var(--animation-timing);
-	opacity: 0;
-	/* border-bottom: 1px solid red; */
+	/* opacity: 0; */
 	user-select: none;
 }
 .step.bigText {
@@ -268,7 +268,9 @@ MAIN TEXT AREA
     text-rendering: geometricPrecision;
     overflow: hidden; /* Hide any overflow */
 }
-
+.notable .transcriptText {
+	color: red;
+}
 .hl_word {
 	/* background-color: yellow; */
 	color: black;

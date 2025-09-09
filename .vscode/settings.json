@@ -1,0 +1,7 @@
+{
+    "svelte.plugin.html.tagComplete.enable": false,
+    "javascript.suggest.enabled": false,
+    "typescript.suggest.enabled": false,
+    "javascript.suggest.completeJSDocs": false,
+    "typescript.suggest.completeJSDocs": false
+}

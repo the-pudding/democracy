@@ -171,7 +171,7 @@
 	let charWidth = $state(0);
 	let charHeight = $state(0);
 
-	function getCharDimensions(fontSize, fontFamily = 'Courier New') {
+	function getCharDimensions(fontSize, fontFamily = 'JetBrains Mono') {
 	  const measurer = document.createElement('span');
 	  measurer.style.font = `${fontSize}px ${fontFamily}`;
 	  measurer.style.lineHeight = '1'; // Match CSS
@@ -193,21 +193,40 @@
 	}
 
 	onMount(() => {
-		const dimensions = getCharDimensions(20);
-		charWidth = dimensions.width;
-		charHeight = dimensions.height * 1.2;
+		updateCharDimensions();
 	});
 
-	let charsPerRow = $derived(charWidth > 0 ? Math.floor(containerWidth / charWidth) - 1 : 0);
+	function updateCharDimensions() {
+		const dimensions = getCharDimensions(currentFontSize);
+		charWidth = dimensions.width;
+		charHeight = dimensions.height * 1.2;
+	}
+
+	// Update character dimensions when font size changes
+	$effect(() => {
+		updateCharDimensions();
+	});
+
+	// Determine font size based on screen width
+	let currentFontSize = $derived(containerWidth <= 715 ? 14 : 16);
+	// Calculate available width for text (accounting for margins and padding)
+	let availableTextWidth = $derived(containerWidth <= 715 ? (containerWidth - 100) : Math.min((containerWidth - 140), 700));
+	// Subtract left margin (10px) and add extra padding to prevent overflow
+	let effectiveTextWidth = $derived(availableTextWidth - 30); // 10px left margin + 20px safety padding
+	let charsPerRow = $derived(charWidth > 0 ? Math.floor(effectiveTextWidth / charWidth) : 0);
 	let totalRows = $derived(charHeight > 0 ? Math.floor(containerHeight / charHeight) : 0);
 	let totalChars = $derived(charsPerRow * totalRows);
 
 	function mungeText(w) {
+	    // Extract and remove byline from processing
+	    const bylineMatch = w.match(/<div class='byline'[^>]*>(.*?)<\/div>/);
+	    const mainText = bylineMatch ? w.replace(bylineMatch[0], '') : w;
+	    
 	    const regex = /\b(democrac(?:y|ies))\b/i;
-	    const match = w.match(regex);
+	    const match = mainText.match(regex);
 	    
 	    if (!match) {
-	        return w.replace(regex, '<span class="hl_word">$1</span>');
+	        return mainText.replace(regex, '<span class="hl_word">$1</span>');
 	    }
 	    
 	    const currentWordPosition = match.index;
@@ -215,8 +234,18 @@
 	    
 	    // Calculate target position for democracy word
 	    const targetRow = Math.floor(totalRows / 4);
-	    const targetCol = Math.floor(charsPerRow / 2) - Math.floor(democracyWord.length / 2) + (charsPerRow*(120/containerWidth/2));
-	    const targetPosition = (targetRow * charsPerRow) + targetCol;
+	    const targetCol = Math.floor(charsPerRow / 2) - Math.floor(democracyWord.length / 2);
+	    
+	    // Adjust positioning for small screens
+	    let pixelsToAdd = 0;
+	    if (containerWidth <= 715) {
+	        // On small screens, position democracy more towards the right to account for full width usage
+	        pixelsToAdd = 20; // Move democracy 20px to the right on small screens
+	    }
+	    
+	    const charsToAdd = charWidth > 0 ? Math.floor(pixelsToAdd / charWidth) : 0;
+	    const adjustedTargetCol = targetCol + charsToAdd;
+	    const targetPosition = (targetRow * charsPerRow) + adjustedTargetCol;
 	    
 	    let processedText;
 	    let adjustedDemocracyPosition = currentWordPosition;
@@ -227,7 +256,7 @@
 	        adjustedDemocracyPosition = currentWordPosition + spacesToAdd;
 	    } else if (currentWordPosition > targetPosition) {
 	        const charsToCut = currentWordPosition - targetPosition;
-	        processedText = w.substring(charsToCut);
+	        processedText = mainText.substring(charsToCut);
 	        adjustedDemocracyPosition = currentWordPosition - charsToCut;
 	    } else {
 	        processedText = w;
@@ -236,14 +265,21 @@
 	    // First, highlight the democracy word
 	    const highlightedText = processedText.replace(/\b(democrac(?:y|ies))\b/i, '<span class="hl_word">$1</span>');
 	    
+	    // Calculate the democracy position based on the target position
+	    // Since we've already positioned the text to put democracy at targetPosition,
+	    // we can use that directly
+	    const democracyPosition = targetPosition;
+	    
 	    // Find which row contains the democracy word (accounting for the added HTML tags)
-	    const democracyRow = Math.floor(adjustedDemocracyPosition / charsPerRow);
+	    // Use the target row directly since we've positioned democracy there
+	    const democracyRow = targetRow;
 	    
 	    // Create rows by splitting at exact character positions, but preserve HTML tags
 	    let result = '';
 	    let currentRow = 0;
 	    let currentCol = 0;
 	    let inTag = false;
+	    let inAnchor = false;
 	    
 	    for (let i = 0; i < highlightedText.length; i++) {
 	        const char = highlightedText[i];
@@ -251,21 +287,32 @@
 	        // Track if we're inside an HTML tag
 	        if (char === '<') {
 	            inTag = true;
+	            // Check if we're entering an anchor tag
+	            const remainingText = highlightedText.substring(i);
+	            if (remainingText.match(/^<a[^>]*>/i)) {
+	                inAnchor = true;
+	            }
 	        } else if (char === '>') {
 	            inTag = false;
+	            // Check if we're exiting an anchor tag
+	            if (inAnchor && highlightedText.substring(0, i + 1).match(/<\/a[^>]*>$/)) {
+	                inAnchor = false;
+	            }
 	        }
 	        
 	        // Only count characters towards column position if not in HTML tag
 	        if (!inTag && char !== '<' && char !== '>') {
 	            if (currentCol === 0) {
-	                // Start of a new row - add row span if needed
-	                const distance = Math.abs(currentRow - democracyRow);
-	                if (currentRow === democracyRow) {
-	                    result += '<span class="democracy-row">';
-	                } else if (distance === 1) {
-	                    result += '<span class="onedegree">';
-	                } else if (distance === 2) {
-	                    result += '<span class="twodegree">';
+	                // Start of a new row - add row span if needed (but not inside anchor tags)
+	                if (!inAnchor) {
+	                    const distance = Math.abs(currentRow - democracyRow);
+	                    if (currentRow === democracyRow) {
+	                        result += '<span class="democracy-row">';
+	                    } else if (distance === 1) {
+	                        result += '<span class="onedegree">';
+	                    } else if (distance === 2) {
+	                        result += '<span class="twodegree">';
+	                    }
 	                }
 	            }
 	            
@@ -274,14 +321,22 @@
 	            
 	            // End of row
 	            if (currentCol >= charsPerRow) {
-	                // Close row span if we opened one
-	                const distance = Math.abs(currentRow - democracyRow);
-	                if (distance <= 2) {
-	                    result += '</span>';
+	                // Close row span if we opened one (but not inside anchor tags)
+	                if (!inAnchor) {
+	                    const distance = Math.abs(currentRow - democracyRow);
+	                    if (distance <= 2) {
+	                        result += '</span>';
+	                    }
 	                }
-	                result += '\n';
-	                currentRow++;
-	                currentCol = 0;
+	                // Only add line break if not inside anchor tag
+	                if (!inAnchor) {
+	                    result += '\n';
+	                    currentRow++;
+	                    currentCol = 0;
+	                } else {
+	                    // If inside anchor, just reset column count without line break
+	                    currentCol = 0;
+	                }
 	            }
 	        } else {
 	            // HTML tag characters don't count towards column position
@@ -289,8 +344,8 @@
 	        }
 	    }
 	    
-	    // Close any remaining span
-	    if (currentCol > 0) {
+	    // Close any remaining span (but not inside anchor tags)
+	    if (currentCol > 0 && !inAnchor) {
 	        const distance = Math.abs(currentRow - democracyRow);
 	        if (distance <= 2) {
 	            result += '</span>';
@@ -345,19 +400,28 @@
 
 <section id="scrolly">
 	<!-- Trigger line visualization (optional - remove if you don't want to see it) -->
-	<div class="trigger-line" style="top: {actualTriggerPosition}px;"></div>
-	<div class="visualContainer" class:notable={currentRow?.notable}>
-		{#if currentRow?.story || year == 1872}
+	<!-- <div class="debug">{value}</div> -->
+	<div class="visualContainer" class:notable={currentRow?.notable} class:annotate={currentRow?.annotate} class:story={currentRow?.story && value != 0 && value} bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
+		{#if (currentRow?.story || year == 1872) && (value != 0 && value)}
 		<div class="progressBar" style="height: { easeInOutQuad(scrollProgress) }%;"></div>
+		{#if currentRow?.context}
+		<div class="context">{currentRow?.context}</div>
 		{/if}
-		<div class="transcriptContainer" bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
+		{/if}
+		<div class="transcriptContainer" >
 		{#if currentRow && currentRow.month}
 		<div class="instanceData" style="opacity: {year > beginYear ? 1 : 0};">
-			{currentRow["month"]} / {currentRow["day"]} / {currentRow["year"]}<br>
+			{#if currentRow["display_month"]}
+			{currentRow["display_month"]} / {currentRow["day"]} / {currentRow["year"]}
+			{:else}
+			{currentRow["month"]} / {currentRow["day"]} / {currentRow["year"]}
+			{/if}
+			<br>
 			{convertChamber(currentRow["chamber"])} {currentRow["firstname"]} {currentRow["lastname"]} 
 			{#if currentRow["party"][0]}
 			({currentRow["party"][0]}-{currentRow["state"]})
-			{/if}
+			{/if}<br>
+			{currentRow["themes"]}
 		</div>
 		<div class="transcriptText">
 			{@html mungeText(currentRow.text)}
@@ -402,7 +466,7 @@
 		width: 100%;
 		background-color: rgba(0,0,0,0.1);
 		/* transition: width 0.1s ease-out; */
-		z-index: 10;
+		z-index: -1;
 	}
 	
 	.trigger-line {
@@ -415,4 +479,15 @@
 		pointer-events: none;
 		opacity: 0.7;
 	}
+	.debug {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		z-index: 1000;
+		pointer-events: none;
+		font-size: 50px;
+		color: #000;
+	}
+	
 </style>

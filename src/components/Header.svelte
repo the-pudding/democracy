@@ -1,6 +1,6 @@
 <script>
 	// shadow, plain, line, bubble
-	import wordmark from "$svg/wordmark-shadow.svg";
+	import wordmark from "$svg/wordmark-bubble.svg";
 </script>
 
 <header>
@@ -16,7 +16,7 @@
 		max-width: 14em;
 		margin: 0 auto;
 		padding: 32px 0;
-		transform: rotate(-4deg);
+		transform: rotate(-4deg);	
 	}
 
 	.wordmark a {

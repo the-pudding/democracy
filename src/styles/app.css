@@ -64,22 +64,23 @@
 	--twodegree-color: #8e6f4e; 
 	*/
 
-	/* USA theme (dimmed, optional) */
-	--color-bg: #121a24;
-	--color-bg-story: #330025;
-	--color-bg-annotate: #330025;
-	--barBg: #121a24;
-	--text-bg: #121a24;
-	--color-bar: #6a86a8;
-	--transcript-text-color: #515f6a;
-	--transcript-instance-color: #a5b3c1;
-	--transcript-notable-color: #f4335a;
-	--highlight-word-color: #f4335a;
-	--democracy-row-color: #e6eaef;
-	--onedegree-color: #a5b3c1;
-	--twodegree-color: #607182;
-	--byline-color: #a5b3c1;
-	--hover-color: #e6eaef;
+	/* Alvin theme */
+	--byline-color: #ff78eb;
+	--hover-color: #ff78eb;
+
+	--color-bg: #1e0d21;
+	--color-bar: #492552;
+	--color-bar-hl: #ff00d4;
+	--color-tooltip: #ffd9f9;
+
+	--speaker-color: #bd91b6;
+	--transcript-text-color: #574454;
+	--twodegree-color: #784f72;
+	--onedegree-color: #bd91b6;
+	--democracy-row-color: #ffd9f9;
+	--highlight-word-color: #ff00d4;
+
+
 	
 	/* "1" second duration */
 	--1s: 1ms;
@@ -123,7 +124,7 @@ h6 {
 }
 body {
 	font-family: var(--mono);
-	background: var(--color-bg-story);
+	background: var(--color-bg);
 }
 svg {
 	display: block;
@@ -141,20 +142,22 @@ svg {
 	margin-top: -100vh
 }
 .visualContainer.story {
-	background: var(--color-bg-story);
+	/* background: var(--color-bg); */
 }
 .visualContainer.annotate {
-	background: var(--color-bg-annotate);
+	/* background: var(--color-bg); */
 }
 .visualContainer {
-	background: var(--color-bg);
+	/* background: var(--color-bg); */
 	position: sticky;
 	top: 0;
-	left: 0;
+	left: 10px;
+	margin: 0 auto;
 	/* width: calc(100% - 120px); */
-	width: 100%;
+	width: calc(100% - 20px);
+	max-width: 160ch;
 	/* max-width: 1800px; */
-	overflow: hidden;
+	/* overflow: hidden; */
 	/* margin: 0 auto; */
 	height: 100vh;
 	height: calc(var(--vh, 1vh) * 100);
@@ -168,7 +171,7 @@ svg {
 	/* border: 1px solid black; */
 }
 
-.textContainer {
+/* .textContainer {
 	width: 400px;
 	max-width: 95%;
 	background: var(--text-bg);
@@ -182,9 +185,8 @@ svg {
 	transform: translateZ(0);
 	backface-visibility: hidden;
 	-webkit-backface-visibility: hidden;
-	/* Optimize for animations */
 	will-change: transform, opacity;
-}
+} */
 
 .step {
 	position: relative;
@@ -239,7 +241,7 @@ svg {
 	/* opacity: 0; */
 	user-select: none;
 }
-.step.bigText {
+/* .step.bigText {
 	background: var(--bigtext-bg);
 	padding: 90px 0;
 	min-height: 100vh;
@@ -249,7 +251,7 @@ svg {
 .step.bigText strong {
 	color: white;
 	font-weight: 600;
-}
+} */
 .step a {
 	color: var(--text-link-color);
 	/* Smooth hover transitions */
@@ -269,7 +271,7 @@ svg {
 } */
 
 /* Top gradient - transparent to white */
-.step.bigText::before {
+/* .step.bigText::before {
 	content: "";
 	position: absolute;
 	bottom: 100%;
@@ -278,10 +280,10 @@ svg {
 	height: 200px;
 	z-index: -1;
 	background: linear-gradient(to bottom, transparent 0%, var(--bigtext-bg) 100%);
-}
+} */
 
 /* Bottom gradient - white to transparent */
-.step.bigText::after {
+/* .step.bigText::after {
 	content: "";
 	position: absolute;
 	top: 100%;
@@ -290,7 +292,7 @@ svg {
 	height: 200px;
 	z-index: -1;
 	background: linear-gradient(to top, transparent 0%, var(--bigtext-bg) 100%);
-}
+} */
 
 
 /*------------------------------
@@ -307,29 +309,80 @@ MAIN TEXT AREA
 .transcriptText {
 	color: var(--transcript-text-color);
 	font-size: 16px;
-	margin: 80px 0 10px 10px;
 	width: 100%;
 	font-family: var(--mono);
 	font-weight: 300;
-	white-space: pre; /* Preserve exact spacing and line breaks */
 	line-height: 1.4; /* Match your charHeight calculation */
 	letter-spacing: 0;
 	word-spacing: 0;
 	font-kerning: none;
 	text-rendering: geometricPrecision;
-	overflow: hidden; /* Hide any overflow */
+	/* overflow: hidden; */
 	box-sizing: border-box; /* Include padding and border in width calculation */
 	max-width: 100%; /* Ensure content doesn't exceed container */
 }
-.notable .instanceData {
-	color: var(--transcript-notable-color) !important;
+@media (max-width: 1200px) {
+	.transcriptText {
+		font-size: 15px;
+	}
 }
+
+@media (max-width: 900px) {
+	.transcriptText {
+		font-size: 14px;
+	}
+}
+
+@media (max-width: 700px) {
+	.transcriptText {
+		font-size: 13px;
+	}
+}
+
+@media (max-width: 500px) {
+	.transcriptText {
+		font-size: 12px;
+	}
+}
+
+
+/* Character measurement element - matches transcriptText font sizes exactly */
+	.char-measure {
+		font-family: var(--mono);
+		font-size: 16px;
+		line-height: 1.4;
+		text-rendering: geometricPrecision;
+	}
+	
+	/* Responsive font sizes - must match transcriptText exactly */
+	@media (max-width: 1200px) {
+		.char-measure {
+			font-size: 15px !important;
+		}
+	}
+	
+	@media (max-width: 900px) {
+		.char-measure {
+			font-size: 14px !important;
+		}
+	}
+	
+	@media (max-width: 700px) {
+		.char-measure {
+			font-size: 13px !important;
+		}
+	}
+	
+	@media (max-width: 500px) {
+		.char-measure {
+			font-size: 12px !important;
+		}
+	}
 .hl_word {
 	/* background-color: yellow; */
 	color: var(--highlight-word-color);
-	font-weight: bold;
+	/* font-weight: bold; */
 	background:black;
-	padding:2px;
 }
 .democracy-row {
 	color:  var(--democracy-row-color);
@@ -338,13 +391,13 @@ MAIN TEXT AREA
 .onedegree {
 	color:  var(--onedegree-color);
 	max-width: 100%;
-	overflow: hidden;
+	/* overflow: hidden; */
 }
 
 .twodegree {
 	color:  var(--twodegree-color);
 	max-width: 100%;
-	overflow: hidden;
+	/* overflow: hidden; */
 }
 .instanceData {
 	position: absolute;
@@ -354,11 +407,17 @@ MAIN TEXT AREA
 	width: 100%;
 	text-align: center;
 	z-index: 10;
-	color: var(--transcript-instance-color);
+	color: var(--speaker-color);
 	text-transform: uppercase;
 	font-size: 16px;
 	line-height: 1.4em;
 	font-weight: bold;
+	background: linear-gradient(to top,
+					rgba(0, 0, 0, 0) 0%,
+					var(--color-bg) 40%,
+					var(--color-bg) 100%);
+	transition: opacity 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750);
+	padding: 3vh 0 5vh;
 }
 
 .byline {
@@ -368,7 +427,7 @@ MAIN TEXT AREA
 	font-size: inherit;
 	margin-top: 10px;
 	color: var(--byline-color);
-	margin-left: -3%;
+	font-size: 13px;
 }
 .byline a {
 	color: var(--byline-color);
@@ -400,27 +459,31 @@ BAR RIGHT SIDE
 ------------------------------*/
 .barContainer {
 	position: absolute;
-	right: 0px;
-	top: 0px;
-	height: 100%;
-	width: 100px;
+	bottom: 0px;
+	left:  50%;
+	transform: translateX(-50%);
+	height: 50%;
+	width: 100%;
+	max-width: 1400px;
+	pointer-events: none;
+	padding-top: 40px;
+	background: linear-gradient(to bottom, 
+		rgba(0, 0, 0, 0) 0%,
+		var(--color-bg) 20%,
+		var(--color-bg) 100%
+	);
 }
-
-/* Media query for very small screens - reduce font size and maximize space */
-@media (max-width: 715px) {
-	.transcriptContainer {
-		width: calc(100% - 100px);
-		max-width: none;
-		left: 0;
-		transform: none;
+@media (max-width: 768px) {
+	.barContainer {
+		height: 50%;
+		background: linear-gradient(to bottom,
+					rgba(0, 0, 0, 0) 0%,
+					var(--color-bg) 15%,
+					var(--color-bg) 100%);
 	}
-	.transcriptText {
+	.instanceData {
 		font-size: 14px;
 	}
-	.byline {
-		font-size: 13px;
-		margin-left: 2%;
-	}
-	
 }
+
 

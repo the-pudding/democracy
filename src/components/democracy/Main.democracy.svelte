@@ -1,493 +1,346 @@
 <script>
-	import Bars from "$components/democracy/Bars.democracy.svelte";
-	import Text from "$components/democracy/Text.democracy.svelte";
-	import Scrolly from "$components/helpers/Scrolly.svelte";
-	import { fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
-	
-	/******************************
-	 * Setting constants
-	*******************************/
-	import data from "$data/speeches.json";
+	import { fade } from 'svelte/transition';
+	import Scrolly from '$components/helpers/Scrolly.svelte';
+	import Bars from '$components/democracy/Bars.democracy.svelte';
+	import data from '$data/speeches.json';
+	// Corrected import path for your project structure
+	import { processText, convertChamber } from '$components/helpers/textUtils.js';
+
+	// Props
+	let { copy } = $props();
+
+	// Component State
+	let value = $state(0);
+	let scrollProgress = $state(0);
+	let barVariable = $state("speeches_with_word");
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
-	let { copy } = $props();
+	let charWidth = $state(0);
+	let charMeasureRef = null;
+	let stepElements = [];
+	const triggerPoint = 100;
+
+	// Constants
 	const beginYear = 1872;
 	const endYear = 2025;
-	
-	const yearRange = Array.from({length: endYear - beginYear + 1}, (_, i) => beginYear + i);
-	const monthRange = [1,2,3,4,5,6,7,8,9,10,11,12];
-	
-	/******************************
-	 * Process and merge data with copy
-	*******************************/
-	let mergedData = $state({});
-	
-	// Create a lookup map for copy data
-	const copyLookup = {};
-	if (copy && copy.story) {
-		copy.story.forEach(item => {
-			const key = `${item.year}-${item.month}`;
-			copyLookup[key] = item;
-		});
-	}
-	
-	// Merge data with copy
-	function createMergedData() {
+	const yearRange = Array.from({ length: endYear - beginYear + 1 }, (_, i) => i + beginYear);
+	const monthRange = Array.from({ length: 12 }, (_, i) => i + 1);
+
+	// One-time data processing
+	const mergedData = (() => {
 		const merged = {};
-		
-		// First, copy all existing data
+		const copyLookup = new Map(copy?.story?.map(item => [`${item.year}-${item.month}`, item]) || []);
 		for (const year in data) {
 			merged[year] = {};
 			for (const month in data[year]) {
-				merged[year][month] = {
-					...data[year][month],
-					story: false
-				};
+				const key = `${year}-${month}`;
+				if (copyLookup.has(key)) {
+					merged[year][month] = { ...copyLookup.get(key), story: true };
+				} else {
+					merged[year][month] = { ...data[year][month], story: false };
+				}
 			}
 		}
-		
-		// Then, overlay copy data and mark as story
-		for (const key in copyLookup) {
+		copyLookup.forEach((item, key) => {
 			const [year, month] = key.split('-');
-			const copyItem = copyLookup[key];
-			
-			if (!merged[year]) {
-				merged[year] = {};
+			if (!merged[year]?.[month]) {
+				if (!merged[year]) merged[year] = {};
+				merged[year][month] = { ...item, story: true };
 			}
-			
-			merged[year][month] = {
-				month: copyItem.month || month,
-				day: copyItem.day || 1,
-				year: copyItem.year || year,
-				chamber: copyItem.chamber || "",
-				firstname: copyItem.firstname || "",
-				lastname: copyItem.lastname || "",
-				party: copyItem.party || "",
-				state: copyItem.state || "",
-				text: copyItem.text || "",
-				notable: copyItem.notable || false,
-				story: true,
-				...copyItem // Spread to preserve any additional properties
-			};
-		}
-		
+		});
 		return merged;
-	}
-	
-	mergedData = createMergedData();
-	
-	/******************************
-	 * Calculate step indices for proper scrolling
-	*******************************/
-	function calculateStepIndices() {
+	})();
+
+	const stepIndices = (() => {
 		const indices = [];
 		let currentIndex = 0;
-		
 		yearRange.forEach((y, yearIndex) => {
 			const currentMonthRange = y === 1873 ? [1, 2, 3] : monthRange;
 			currentMonthRange.forEach((m, monthIndex) => {
-				indices.push({
-					year: y,
-					month: m,
-					yearIndex,
-					monthIndex,
-					stepIndex: currentIndex
-				});
+				indices.push({ year: y, month: m, yearIndex, monthIndex, stepIndex: currentIndex });
 				currentIndex++;
 			});
 		});
-		
 		return indices;
-	}
-	
-	const stepIndices = calculateStepIndices();
-	
-	/******************************
-	 * Setting reactive variables
-	*******************************/
-	let value = $state(0);
-	let scrollProgress = $state(0);
-	let notable = $state(false);
-	let currentRow = $state(undefined);
-	let lastValidRow = undefined;
+	})();
 
-	let currentText = $state("");
+	// Derived State (values computed from other state)
+	const currentStepIndex = $derived(Math.floor(value));
+	const currentStepData = $derived(stepIndices[currentStepIndex] || stepIndices[0]);
+	const year = $derived(currentStepData.year);
+	const month = $derived(currentStepData.month);
+	const charsPerRow = $derived(charWidth > 0 ? Math.floor(containerWidth / charWidth) - 0.5: 0);
+
+	// Declare state variable for the current row
+	let currentRow = $state(undefined);
+
+	$effect(() => {
+	    console.log('Values updated:', {
+	        lineWidth: charsPerRow,
+	        charWidth,
+	        containerWidth,
+	        charMeasureRef: !!charMeasureRef,
+	        windowWidth: window.innerWidth
+	    });
+	});
+	// Use an effect to update currentRow when year/month change
+	$effect(() => {
+		const maybeRow = mergedData?.[year]?.[month];
+		if (maybeRow) {
+			currentRow = maybeRow;
+		}
+	});
+
+	// Now declare derived values that DEPEND on currentRow
+	const storyText = $derived(processText(currentRow?.text || "", charsPerRow));
+	const showStoryElements = $derived((currentRow?.story || year === 1872) && value > 0);
+
+	// Media query listeners for font size changes
+	let mediaQuery700, mediaQuery900;
 	
-	// Track scroll position within current step
-	let scrollContainer;
-	let stepElements = [];
-	
+	// Lifecycle and Event Handlers
 	onMount(() => {
-		const handleScroll = () => {
-			if (!stepElements.length) return;
-			
-			const currentStepIndex = Math.floor(value);
-			const currentStepElement = stepElements[currentStepIndex];
-			
-			if (currentStepElement) {
-				const rect = currentStepElement.getBoundingClientRect();
-				const windowHeight = window.innerHeight;
-				const triggerPosition = triggerPoint;
+		const measureCharWidth = () => {
+			if (charMeasureRef) {
+				// Get the actual text layout element to match its styling
+				const textLayoutElement = document.querySelector('.transcriptText');
+				if (textLayoutElement) {
+					const textStyle = window.getComputedStyle(textLayoutElement);
+					// Copy the exact font properties from the text layout
+					charMeasureRef.style.fontSize = textStyle.fontSize;
+					charMeasureRef.style.fontFamily = textStyle.fontFamily;
+					charMeasureRef.style.lineHeight = textStyle.lineHeight;
+					charMeasureRef.style.textRendering = textStyle.textRendering;
+				}
+
+				const rect = charMeasureRef.getBoundingClientRect();
+				const measuredWidth = rect.width / 20;
+				charWidth = measuredWidth;
 				
-				// Calculate how far through this step we've scrolled
-				const stepTop = rect.top;
-				const stepHeight = rect.height;
-				const distanceFromTrigger = triggerPosition - stepTop;
-				
-				// Convert to percentage (0-100)
-				const progress = Math.max(0, Math.min(100, (distanceFromTrigger / stepHeight) * 100));
-				scrollProgress = Math.round(progress);
+				console.log('CharWidth measurement:', {
+					elementWidth: rect.width,
+					measuredWidth,
+					containerWidth,
+					charsPerRow: Math.floor(containerWidth / measuredWidth),
+					windowWidth: window.innerWidth
+				});
 			}
 		};
 		
-		window.addEventListener('scroll', handleScroll);
-		return () => window.removeEventListener('scroll', handleScroll);
-	});
-	
-	/******************************
-	 * Scroll progress tracking
-	*******************************/
-	// Calculate total number of steps (now dynamic based on actual steps)
-	const totalSteps = stepIndices.length;
-	
-	// Track trigger point (the `top` value passed to Scrolly)
-	let triggerPoint = $state(100); // Try 100px from top to see the difference
-	
-	// The actual trigger line position is at the top of viewport + triggerPoint
-	let actualTriggerPosition = $derived(triggerPoint);
-	
-	/******************************
-	 * Text functions
-	*******************************/
-	function convertChamber(c) {
-		if (c == "Senate") {return "Sen."}
-			if (c == "House") {return "Rep."}
-		}
-
-	/******************************
-	 * Text adjustment to center
-	*******************************/
-	let charWidth = $state(0);
-	let charHeight = $state(0);
-
-	function getCharDimensions(fontSize, fontFamily = 'JetBrains Mono') {
-	  const measurer = document.createElement('span');
-	  measurer.style.font = `${fontSize}px ${fontFamily}`;
-	  measurer.style.lineHeight = '1'; // Match CSS
-	  measurer.style.letterSpacing = '0';
-	  measurer.style.wordSpacing = '0';
-	  measurer.style.fontKerning = 'none';
-	  measurer.style.textRendering = 'geometricPrecision';
-	  measurer.style.position = 'absolute';
-	  measurer.style.visibility = 'hidden';
-	  measurer.style.whiteSpace = 'pre';
-	  measurer.textContent = 'M';
-	  
-	  document.body.appendChild(measurer);
-	  const width = measurer.offsetWidth;
-	  const height = measurer.offsetHeight;
-	  document.body.removeChild(measurer);
-	  
-	  return { width, height };
-	}
-
-	onMount(() => {
-		updateCharDimensions();
-	});
-
-	function updateCharDimensions() {
-		const dimensions = getCharDimensions(currentFontSize);
-		charWidth = dimensions.width;
-		charHeight = dimensions.height * 1.2;
-	}
-
-	// Update character dimensions when font size changes
-	$effect(() => {
-		updateCharDimensions();
-	});
-
-	// Determine font size based on screen width
-	let currentFontSize = $derived(containerWidth <= 715 ? 14 : 16);
-	// Calculate available width for text (accounting for margins and padding)
-	let availableTextWidth = $derived(containerWidth <= 715 ? (containerWidth - 100) : Math.min((containerWidth - 140), 700));
-	// Subtract left margin (10px) and add extra padding to prevent overflow
-	let effectiveTextWidth = $derived(availableTextWidth - 30); // 10px left margin + 20px safety padding
-	let charsPerRow = $derived(charWidth > 0 ? Math.floor(effectiveTextWidth / charWidth) : 0);
-	let totalRows = $derived(charHeight > 0 ? Math.floor(containerHeight / charHeight) : 0);
-	let totalChars = $derived(charsPerRow * totalRows);
-
-	function mungeText(w) {
-	    // Extract and remove byline from processing
-	    const bylineMatch = w.match(/<div class='byline'[^>]*>(.*?)<\/div>/);
-	    const mainText = bylineMatch ? w.replace(bylineMatch[0], '') : w;
-	    
-	    const regex = /\b(democrac(?:y|ies))\b/i;
-	    const match = mainText.match(regex);
-	    
-	    if (!match) {
-	        return mainText.replace(regex, '<span class="hl_word">$1</span>');
-	    }
-	    
-	    const currentWordPosition = match.index;
-	    const democracyWord = match[1];
-	    
-	    // Calculate target position for democracy word
-	    const targetRow = Math.floor(totalRows / 4);
-	    const targetCol = Math.floor(charsPerRow / 2) - Math.floor(democracyWord.length / 2);
-	    
-	    // Adjust positioning for small screens
-	    let pixelsToAdd = 0;
-	    if (containerWidth <= 715) {
-	        // On small screens, position democracy more towards the right to account for full width usage
-	        pixelsToAdd = 20; // Move democracy 20px to the right on small screens
-	    }
-	    
-	    const charsToAdd = charWidth > 0 ? Math.floor(pixelsToAdd / charWidth) : 0;
-	    const adjustedTargetCol = targetCol + charsToAdd;
-	    const targetPosition = (targetRow * charsPerRow) + adjustedTargetCol;
-	    
-	    let processedText;
-	    let adjustedDemocracyPosition = currentWordPosition;
-	    
-	    if (currentWordPosition < targetPosition) {
-	        const spacesToAdd = targetPosition - currentWordPosition;
-	        processedText = ' '.repeat(spacesToAdd) + w;
-	        adjustedDemocracyPosition = currentWordPosition + spacesToAdd;
-	    } else if (currentWordPosition > targetPosition) {
-	        const charsToCut = currentWordPosition - targetPosition;
-	        processedText = mainText.substring(charsToCut);
-	        adjustedDemocracyPosition = currentWordPosition - charsToCut;
-	    } else {
-	        processedText = w;
-	    }
-	    
-	    // First, highlight the democracy word
-	    const highlightedText = processedText.replace(/\b(democrac(?:y|ies))\b/i, '<span class="hl_word">$1</span>');
-	    
-	    // Calculate the democracy position based on the target position
-	    // Since we've already positioned the text to put democracy at targetPosition,
-	    // we can use that directly
-	    const democracyPosition = targetPosition;
-	    
-	    // Find which row contains the democracy word (accounting for the added HTML tags)
-	    // Use the target row directly since we've positioned democracy there
-	    const democracyRow = targetRow;
-	    
-	    // Create rows by splitting at exact character positions, but preserve HTML tags
-	    let result = '';
-	    let currentRow = 0;
-	    let currentCol = 0;
-	    let inTag = false;
-	    let inAnchor = false;
-	    
-	    for (let i = 0; i < highlightedText.length; i++) {
-	        const char = highlightedText[i];
-	        
-	        // Track if we're inside an HTML tag
-	        if (char === '<') {
-	            inTag = true;
-	            // Check if we're entering an anchor tag
-	            const remainingText = highlightedText.substring(i);
-	            if (remainingText.match(/^<a[^>]*>/i)) {
-	                inAnchor = true;
-	            }
-	        } else if (char === '>') {
-	            inTag = false;
-	            // Check if we're exiting an anchor tag
-	            if (inAnchor && highlightedText.substring(0, i + 1).match(/<\/a[^>]*>$/)) {
-	                inAnchor = false;
-	            }
-	        }
-	        
-	        // Only count characters towards column position if not in HTML tag
-	        if (!inTag && char !== '<' && char !== '>') {
-	            if (currentCol === 0) {
-	                // Start of a new row - add row span if needed (but not inside anchor tags)
-	                if (!inAnchor) {
-	                    const distance = Math.abs(currentRow - democracyRow);
-	                    if (currentRow === democracyRow) {
-	                        result += '<span class="democracy-row">';
-	                    } else if (distance === 1) {
-	                        result += '<span class="onedegree">';
-	                    } else if (distance === 2) {
-	                        result += '<span class="twodegree">';
-	                    }
-	                }
-	            }
-	            
-	            result += char;
-	            currentCol++;
-	            
-	            // End of row
-	            if (currentCol >= charsPerRow) {
-	                // Close row span if we opened one (but not inside anchor tags)
-	                if (!inAnchor) {
-	                    const distance = Math.abs(currentRow - democracyRow);
-	                    if (distance <= 2) {
-	                        result += '</span>';
-	                    }
-	                }
-	                // Only add line break if not inside anchor tag
-	                if (!inAnchor) {
-	                    result += '\n';
-	                    currentRow++;
-	                    currentCol = 0;
-	                } else {
-	                    // If inside anchor, just reset column count without line break
-	                    currentCol = 0;
-	                }
-	            }
-	        } else {
-	            // HTML tag characters don't count towards column position
-	            result += char;
-	        }
-	    }
-	    
-	    // Close any remaining span (but not inside anchor tags)
-	    if (currentCol > 0 && !inAnchor) {
-	        const distance = Math.abs(currentRow - democracyRow);
-	        if (distance <= 2) {
-	            result += '</span>';
-	        }
-	    }
-	    
-	    return result;
-	}
-
-	function easeInOutQuad(t) {
-	    // Normalize input from 0-100 to 0-1
-	    const x = t / 100;
-	    
-	    // Quadratic ease-in-out formula
-	    const eased = x < 0.5 
-	        ? 2 * x * x 
-	        : 1 - Math.pow(-2 * x + 2, 2) / 2;
-	    
-	    // Return normalized back to 0-100 range
-	    return eased * 100;
-	}
-	
-	/******************************
-	 * Derived values (computed from value using step indices)
-	*******************************/
-	let currentStepIndex = $derived(Math.floor(value));
-	let currentStepData = $derived(stepIndices[currentStepIndex] || stepIndices[0]);
-	let year = $derived(currentStepData?.year || beginYear);
-	let month = $derived(currentStepData?.month || 1);
-	
-	/******************************
-	 * Reactive code
-	*******************************/
-	$effect(() => {
-		// Use merged data instead of checking copy separately
-		const maybeRow = mergedData?.[String(year)]?.[String(month)];
-
-		if (maybeRow) {
-			currentRow = maybeRow;
-			lastValidRow = maybeRow;
-			
-			// Update democracy position when currentRow changes
-			const regex = /\b(democrac(?:y|ies))\b/i;
-			const match = maybeRow.text?.match(regex);
-		} else {
-			currentRow = lastValidRow;
+		// Initial measurement
+		measureCharWidth();
+		
+		// Listen for window resize
+		window.addEventListener('resize', measureCharWidth);
+		
+		// Use ResizeObserver to detect when the measurement element's font size changes
+		let resizeObserver;
+		if (charMeasureRef && window.ResizeObserver) {
+			resizeObserver = new ResizeObserver(() => {
+				measureCharWidth();
+			});
+			resizeObserver.observe(charMeasureRef);
 		}
 		
-		console.log('Scroll Progress:', scrollProgress + '%', 'Step:', Math.floor(value), 'Current Value:', value, 'Year:', year, 'Month:', month);
+		// Also listen for media query changes to catch font size changes
+		mediaQuery700 = window.matchMedia('(max-width: 700px)');
+		mediaQuery900 = window.matchMedia('(max-width: 900px)');
+		const handleMediaChange = () => {
+			// Small delay to let CSS apply
+			setTimeout(measureCharWidth, 10);
+		};
+		mediaQuery700.addEventListener('change', handleMediaChange);
+		mediaQuery900.addEventListener('change', handleMediaChange);
+
+		const handleScroll = () => {
+			if (!stepElements.length) return;
+			const currentStepElement = stepElements[currentStepIndex];
+			if (currentStepElement) {
+				const rect = currentStepElement.getBoundingClientRect();
+				const progress = Math.max(0, Math.min(100, (triggerPoint - rect.top) / rect.height * 100));
+				scrollProgress = Math.round(progress);
+			}
+		};
+		window.addEventListener('scroll', handleScroll, { passive: true });
+
+		return () => {
+			window.removeEventListener('resize', measureCharWidth);
+			window.removeEventListener('scroll', handleScroll);
+			if (resizeObserver) {
+				resizeObserver.disconnect();
+			}
+			mediaQuery700.removeEventListener('change', handleMediaChange);
+			mediaQuery900.removeEventListener('change', handleMediaChange);
+		};
 	});
+
+	function handleToggleClick(event) {
+		barVariable = event.target.value;
+	}
 </script>
 
+<div bind:this={charMeasureRef} class="char-measure" style="position: absolute; visibility: hidden; left: -9999px; white-space: pre; font-family: var(--mono); font-size: 13px; line-height: 1.4; text-rendering: geometricPrecision;">Mpdk,aS821kjSxc.asq2</div>
+
 <section id="scrolly">
-	<!-- Trigger line visualization (optional - remove if you don't want to see it) -->
-	<!-- <div class="debug">{value}</div> -->
-	<div class="visualContainer" class:notable={currentRow?.notable} class:annotate={currentRow?.annotate} class:story={currentRow?.story && value != 0 && value} bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
-		{#if (currentRow?.story || year == 1872) && (value != 0 && value)}
-		<div class="progressBar" style="height: { easeInOutQuad(scrollProgress) }%;"></div>
-		{#if currentRow?.context}
-		<div class="context">{currentRow?.context}</div>
+	{#if showStoryElements}
+		<div class="progressBar" style="height: {scrollProgress}%;"></div>
+	{/if}
+
+	<div class="visualContainer" class:annotate={currentRow?.annotate} class:story={showStoryElements} bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
+		{#if currentRow?.themes}
+			<div class="debug">{currentRow.themes}</div>
 		{/if}
+
+		{#if showStoryElements && currentRow?.context}
+			<div class="context">{currentRow.context}</div>
 		{/if}
-		<div class="transcriptContainer" >
-		{#if currentRow && currentRow.month}
-		<div class="instanceData" style="opacity: {year > beginYear ? 1 : 0};">
-			{#if currentRow["display_month"]}
-			{currentRow["display_month"]} / {currentRow["day"]} / {currentRow["year"]}
-			{:else}
-			{currentRow["month"]} / {currentRow["day"]} / {currentRow["year"]}
+
+		<div class=" transcriptText text-layout-container">
+			{#if currentRow?.month}
+				<div class="instanceData" style:opacity={year > beginYear ? 1 : 0}>
+					{currentRow.display_month || currentRow.month} / {currentRow.day} / {currentRow.year}
+					<br />
+					{convertChamber(currentRow.chamber)} {currentRow.firstname} {currentRow.lastname}
+					{#if currentRow.party?.[0]}
+						({currentRow.party[0]}-{currentRow.state})
+					{/if}
+				</div>
 			{/if}
-			<br>
-			{convertChamber(currentRow["chamber"])} {currentRow["firstname"]} {currentRow["lastname"]} 
-			{#if currentRow["party"][0]}
-			({currentRow["party"][0]}-{currentRow["state"]})
-			{/if}<br>
-			{currentRow["themes"]}
+
+			{#if storyText.prologue}
+				<div class="prologue-container">
+					{@html storyText.prologue}
+				</div>
+			{/if}
+			{#if storyText.democracyRow}
+				<div class="democracy-row-container">
+					{@html storyText.democracyRow}
+				</div>
+			{/if}
+			{#if storyText.epilogue}
+				<div class="epilogue-container">
+					{@html storyText.epilogue}
+				</div>
+			{/if}
 		</div>
-		<div class="transcriptText">
-			{@html mungeText(currentRow.text)}
-		</div>
-		{/if}
-		</div>
-		<div 
-			class="bars-container" 
-			style="opacity: {year > beginYear ? 1 : 0};"
-		>
-			<Bars {year} {month} {containerWidth} {containerHeight}/>
+
+		<div class="bars-container" style:opacity={year > beginYear ? 1 : 0}>
+			<div class="toggle">
+				<button class:selected={barVariable === "total_pct"} value="total_pct" onclick={handleToggleClick}>
+					% of speeches
+				</button>
+				<button class:selected={barVariable === "speeches_with_word"} value="speeches_with_word" onclick={handleToggleClick}>
+					# of speeches
+				</button>
+			</div>
+			<Bars {year} {month} {containerWidth} {containerHeight} {barVariable} />
 		</div>
 	</div>
+
 	<Scrolly bind:value top={triggerPoint}>
 		{#each stepIndices as step, i}
-			{@const active = value === step.stepIndex}
-			{@const rowData = mergedData?.[String(step.year)]?.[String(step.month)]}
-				<div 
-					class="step" 
-					class:story={rowData?.story || step.year == 1872} 
-					class:active 
-					class:pretext={step.year === 1872}
-					bind:this={stepElements[i]}
-				>
-					<!-- {step.month}/{step.year} -->
-				</div>
+			{@const rowData = mergedData?.[step.year]?.[step.month]}
+			<div class="step" class:story={rowData?.story || step.year === 1872} bind:this={stepElements[i]}></div>
 		{/each}
 	</Scrolly>
 </section>
 
 <style>
-	.bars-container, .instanceData {
-		opacity:  0;
-		transition: all 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750);
-		transition-timing-function: cubic-bezier(0.250, 0.250, 0.750, 0.750);
+	.visualContainer, .text-layout-container, .prologue-container, .democracy-row-container, .epilogue-container {
+	    box-sizing: border-box;
 	}
-	
-	.progressBar {
+	/* --- Your existing styles --- */
+	.bars-container {
+		opacity: 0;
+		transition: opacity 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750);
+		display: block;
+	}
+	.toggle {
 		position: absolute;
+		top: 10px;
+		left: 10px;
+		z-index: 99;
+		font-size: 14px;
+		display: none;
+	}
+	.toggle button {
+		background: #3d0d34;
+		color: rgba(255, 255, 255, 0.4);
+		cursor: pointer;
+		border: none;
+		padding: 8px 12px;
+	}
+	.toggle button.selected {
+		color: white;
+		background: purple;
+	}
+	.progressBar {
+		position: fixed;
 		top: 0;
 		left: 0;
 		width: 100%;
-		background-color: rgba(0,0,0,0.1);
-		/* transition: width 0.1s ease-out; */
+		background-color: rgba(0, 0, 0, 0.2);
 		z-index: -1;
-	}
-	
-	.trigger-line {
-		position: fixed;
-		left: 0;
-		right: 0;
-		height: 2px;
-		/* background-color: red; */
-		z-index: 1000;
-		pointer-events: none;
-		opacity: 0.7;
 	}
 	.debug {
 		position: fixed;
 		top: 0;
-		left: 0;
-		width: 100%;
+		right: 0px;
+		width: 300px;
 		z-index: 1000;
 		pointer-events: none;
-		font-size: 50px;
-		color: #000;
+		font-size: 10px;
+		color: #fff;
+		text-align: right;
 	}
-	
+
+	/* --- Styles for the text layout --- */
+	.text-layout-container {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		font-family: var(--mono);
+		line-height: 1.4;
+		text-rendering: geometricPrecision;
+	}
+	.prologue-container,
+	.democracy-row-container,
+	.epilogue-container {
+		/* Add this line to prevent the browser from breaking lines at hyphens */
+		hyphens: none;
+	}
+
+	.democracy-row-container {
+		position: absolute;
+		left: 0;
+		width: 100%;
+		color: var(--democracy-row-color);
+		bottom: 65%;
+		transform: translateY(-50%);
+		height: 1.4em;
+	}
+	.prologue-container {
+		position: absolute;
+		left: 0;
+		width: 100%;
+		overflow: hidden;
+		color: var(--transcript-text-color);
+		bottom: calc(65% + 2.25em);
+	}
+	.epilogue-container {
+		position: absolute;
+		left: 0;
+		width: 100%;
+		overflow: hidden;
+		color: var(--transcript-text-color);
+		top: calc(35% - 8px);
+		bottom: 0;
+	}
+	.hl_word {
+		color: var(--highlight-word-color);
+		background: black;
+	}
 </style>

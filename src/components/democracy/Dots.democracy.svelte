@@ -1,0 +1,293 @@
+<script>
+	// Props for the component
+	let {
+		year,
+		month,
+		containerWidth,
+		containerHeight,
+		barVariable,
+		currentRow,
+		transcriptWidth,
+		transcriptHeight
+	} = $props();
+
+	// Imports
+	import P5 from "p5-svelte";
+	import volume_year from "$data/volume_year.json"; // Adjust path if needed
+
+	// vars
+	const heightRatio = 0.65;
+	let dotSize = 2;
+	const defaultColor = [73, 37, 82];
+	let atlasGrotesk;
+
+	// const hlColor = [255, 0, 212];
+	const hlColor = [255, 0, 208];
+	let decade = Math.floor(year / 10) * 10;
+	const barChart = true;
+	const colorByDecade = false;
+
+	const hlCategory = "authoritarian_threats";
+	const decade_themes = {
+		"1870": [],
+		"1880": ["electoral_integrity","expanding_democracy","restricting_democracy"],
+		"1890": ["money_in_politics"],
+		"1900": ["money_in_politics"],
+		"1910": ["expanding_democracy", "restricting_democracy"],
+		"1920": ["expanding_democracy", "restricting_democracy"],
+		"1930": ["authoritarian_threats"],
+		"1940": ["authoritarian_threats"],
+		"1950": ["foreign_threats"],
+		"1960": ["expanding_democracy"],
+		"1970": ["expanding_democracy"],
+		"1980": ["expanding_democracy"],
+		"1990": ["money_in_politics"],
+		"2000": ["electoral_integrity", "money_in_politics"],
+		"2010": ["expanding_democracy","restricting_democracy","authoritarian_threats"],
+		"2020": ["authoritarian_threats"]
+	};
+
+	// The main p5.js sketch function
+	const sketch = (p) => {
+		let dots = [];
+		let denominator = 4;
+
+		const categories = [
+			"authoritarian_threats",
+			"electoral_integrity",
+			"expanding_democracy",
+			"restricting_democracy",
+			"money_in_politics",
+			"foreign_threats"
+		];
+		const categoryColors = {
+			// electoral_integrity: [255, 99, 132],
+			// expanding_democracy: [54, 162, 235],
+			// restricting_democracy: [255, 206, 86],
+			// money_in_politics: [75, 192, 192],
+			// authoritarian_threats: [153, 102, 255],
+			// foreign_threats: [255, 159, 64]
+
+			electoral_integrity: [73, 37, 82],
+			expanding_democracy: [73, 37, 82],
+			restricting_democracy: [73, 37, 82],
+			money_in_politics: [73, 37, 82],
+			authoritarian_threats: [255, 0, 212],
+			foreign_threats: [73, 37, 82]
+
+			// electoral_integrity: [188, 120, 204],
+			// expanding_democracy: [188, 120, 204],
+			// restricting_democracy: [188, 120, 204],
+			// money_in_politics: [188, 120, 204],
+			// authoritarian_threats: [255, 0, 212],
+			// foreign_threats: [188, 120, 204]
+		};
+		p.preload = () => {
+			// atlasGrotesk = p.loadFont('assets/app/AtlasGrotesk-Regular-Web.otf'); // TiemposTextWeb-Regular.otf
+		}
+
+		p.setup = () => {
+			p.textFont('Menlo');
+			const canvasW = containerWidth || p.windowWidth;
+			const canvasH = containerHeight || p.windowHeight;
+			p.createCanvas(canvasW, canvasH);
+			dotSizeSet();
+			// --- DOT CREATION FOR ALL DATA ---
+			dots = [];
+
+			// Loop through the entire volume_year object to create dots for every year.
+			for (const yearKey in volume_year) {
+				const yearData = volume_year[yearKey];
+
+				if (yearData) {
+					let counter = 0;
+					const totalCol = yearData.total;
+					for (const category of categories) {
+						const count = yearData[category];
+						if (typeof count === "number") {
+							const numDots = Math.floor(count / denominator);
+							for (let i = 0; i < numDots; i++) {
+								// Pass the specific year from our loop (yearKey)
+								dots.push(
+									new Dot(
+										Number(yearKey),
+										Math.ceil(((i + 1) / (numDots + 1)) * 12),
+										category,
+										counter,
+										totalCol
+									)
+								);
+								counter++;
+							}
+						}
+					}
+				}
+			}
+		};
+
+		p.windowResized = () => {
+			const canvasW = containerWidth || p.windowWidth;
+			const canvasH = containerHeight || p.windowHeight;
+			p.resizeCanvas(canvasW, canvasH);
+			dotSizeSet()
+		};
+
+		function dotSizeSet() {
+			dotSize = p.width / 255 / 2;
+			if (dotSize < 3) {
+				dotSize = 3;
+			}
+		}
+
+		p.draw = () => {
+			p.background(30, 13, 33);
+			decade = String(Math.floor(year / 10) * 10);
+			for (let dot of dots) {
+				dot.move();
+				dot.update();
+				dot.display();
+			}
+
+			makeAxis();
+		};
+
+		function makeAxis(y) {
+			p.textAlign(p.CENTER);
+			p.fill("#82657d");
+			p.noStroke();
+			p.textSize(p.constrain(p.width / 100, 13, 19));
+			let interval = 10;
+			if (p.width < 1000) {
+				interval = 20;
+			}
+			for (let i = 1880; i <= 2020; i+=interval) {
+				p.text(i, yearToXAxis(i) * p.width, p.height - 20);
+			}
+		}
+
+		function yearToXAxis(y) {
+			return (155 - (2030 - y))/155
+		}
+
+		class Dot {
+			constructor(_year, _month, category, num, total) {
+				this.year = _year;
+				this.month = _month;
+				this.category = category;
+				this.pos = p.createVector(
+					p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+					p.height / 4
+				);
+				this.targetPos = p.createVector(this.pos.x, this.pos.y);
+				this.vel = p.createVector(0, 0);
+				this.acc = p.createVector(0, 0);
+				this.total = total;
+				this.num = num;
+				if (barChart) {
+					this.finalPosPct = p.createVector( yearToXAxis(this.year) , this.num);
+				} else {
+					this.finalPosPct = p.createVector( yearToXAxis(this.year) , Math.random() * this.total / this.total);
+				}
+
+				// console.log(num, total)
+				this.maxSpeed = p.random(2, 10);
+				this.maxForce = p.random(0.05, 0.5);
+				this.size = dotSize;
+				this.opacity = 0;
+				// this.color = categoryColors[category];
+			}
+
+			update() {
+				let desired = this.targetPos.copy();
+				desired.sub(this.pos);
+
+				let distance = desired.mag();
+
+				// --- FIX #1: Snap to target ---
+				// If we are closer than 1 pixel, snap to the target and stop all movement.
+				if (distance < 1) {
+					this.pos.set(this.targetPos);
+					this.vel.mult(0);
+					this.acc.mult(0);
+					return; // Exit the function to prevent further calculations
+				}
+
+				// Scale speed based on distance (the "arrival" behavior)
+				if (distance < 100) {
+					let speed = p.map(distance, 0, 100, 0, this.maxSpeed);
+					desired.setMag(speed);
+				} else {
+					desired.setMag(this.maxSpeed);
+				}
+
+				// Calculate the steering force
+				desired.sub(this.vel);
+				let steer = desired;
+				steer.limit(this.maxForce);
+
+				this.acc.add(steer);
+
+				// --- FIX #2: Apply Damping/Friction ---
+				// This slows the dot down over time, reducing momentum and preventing overshoot.
+				this.vel.mult(0.97);
+
+				// Standard physics update
+				this.vel.add(this.acc);
+				this.vel.limit(this.maxSpeed);
+				this.pos.add(this.vel);
+				this.acc.mult(0);
+			}
+
+			move() {
+				// Check if this dot's date is in the "future" compared to the scrolly position.
+				// The logic is: (is the year greater?) OR (are the years the same AND is the month greater?)
+				const isFuture =
+					this.year > year || (this.year === year && this.month > month);
+
+				if (isFuture) {
+					// If the date has not been reached yet, send it to a random waiting position off-screen.
+					this.targetPos.set(
+						p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+						p.height / 4
+					);
+					this.opacity = p.lerp(this.opacity, 0, 0.1);
+				} else {
+					// if (this.num > this.total/2) {
+					// 	this.finalPosPct = p.createVector( (155 - (2030 - this.year))/155 + .5, this.num - this.total/2);
+					// }
+					if (barChart) {
+						this.targetPos = p.createVector(this.finalPosPct.x * p.width,  p.height - (this.finalPosPct.y * dotSize) - 50 );
+					} else {
+						this.targetPos = p.createVector(this.finalPosPct.x * p.width,  p.height - (this.finalPosPct.y * p.height * heightRatio) - 50 );
+					}
+					this.opacity = p.lerp(this.opacity, 210, 0.01);
+				}
+			}
+
+			display() {
+				let color = defaultColor;
+				if (colorByDecade) {
+					if (decade_themes[decade].includes(this.category)) {
+						color = hlColor;
+					}
+				} else {
+					if (this.category == hlCategory) {
+						color = hlColor;
+					}
+				}
+
+				p.stroke(color[0], color[1], color[2], this.opacity);
+				p.strokeWeight(this.size);
+				p.point(this.pos.x, this.pos.y, this.size);
+			}
+		}
+	};
+</script>
+
+<P5 {sketch} />
+
+<style>
+	:global(canvas) {
+		display: block;
+	}
+</style>

@@ -69,18 +69,19 @@
 	--hover-color: #ff78eb;
 
 	--color-bg: #1e0d21;
+	/* --color-bg-story: #1c002e; */
+	--color-bg-story: #1e0d21;
 	--color-bar: #492552;
 	--color-bar-hl: #ff00d4;
 	--color-tooltip: #ffd9f9;
+	--color-progress: #ff00d4;
 
 	--speaker-color: #bd91b6;
-	--transcript-text-color: #574454;
+	--transcript-text-color: #82657d;
 	--twodegree-color: #784f72;
 	--onedegree-color: #bd91b6;
 	--democracy-row-color: #ffd9f9;
 	--highlight-word-color: #ff00d4;
-
-
 	
 	/* "1" second duration */
 	--1s: 1ms;
@@ -124,7 +125,7 @@ h6 {
 }
 body {
 	font-family: var(--mono);
-	background: var(--color-bg);
+	/* background: var(--color-bg); */
 }
 svg {
 	display: block;
@@ -142,7 +143,7 @@ svg {
 	margin-top: -100vh
 }
 .visualContainer.story {
-	/* background: var(--color-bg); */
+	background: var(--color-bg-story);
 }
 .visualContainer.annotate {
 	/* background: var(--color-bg); */
@@ -151,11 +152,11 @@ svg {
 	/* background: var(--color-bg); */
 	position: sticky;
 	top: 0;
-	left: 10px;
+	left: 0px;
 	margin: 0 auto;
 	/* width: calc(100% - 120px); */
-	width: calc(100% - 20px);
-	max-width: 160ch;
+	width: 100%;
+	/* max-width: 160ch; */
 	/* max-width: 1800px; */
 	/* overflow: hidden; */
 	/* margin: 0 auto; */
@@ -187,14 +188,20 @@ svg {
 	-webkit-backface-visibility: hidden;
 	will-change: transform, opacity;
 } */
-
+.p5-container, .m-0 {
+	width: 100%;
+	height: 100vh;
+	position: absolute;
+	left: 0px;
+	top: 0vh;
+}
 .step {
 	position: relative;
 	contain: layout style;
 	/* Remove transform to prevent reflow */
 	transform: none;
-	height: 20px;
-	min-height: 20px;
+	height: 2vh;
+	/* min-height: 20px; */
 	padding: 0px 0;
 	margin: 0vh auto;
 	text-align: left;
@@ -233,7 +240,7 @@ svg {
 	margin-right: 5px;
 	z-index: 10;
 	font-size: 11px;
-	font-family: var(--mono);
+	/* font-family: var(--mono); */
 	color: var(--person-default-bg);
 	/* Smooth transitions for active states */
 	transition: font-size var(--animation-duration) var(--animation-timing),
@@ -301,33 +308,48 @@ MAIN TEXT AREA
 .transcriptContainer {
 	height: 100%;
 	position: absolute;
-	width: calc(100% - 140px);
+/* 	width: calc(100% - 140px);
 	max-width: 700px;
 	left: 50%;
-	transform: translateX(-50%);
+	transform: translateX(-50%); */
 }
 .transcriptText {
 	color: var(--transcript-text-color);
 	font-size: 16px;
-	width: 100%;
-	font-family: var(--mono);
+	/* width: calc(100% - 40px); */
+	width: 80ch;
+	margin-left: 20px;
+	/* font-family: var(--mono); */
 	font-weight: 300;
 	line-height: 1.4; /* Match your charHeight calculation */
-	letter-spacing: 0;
-	word-spacing: 0;
+	/* letter-spacing: 0; */
+	/* word-spacing: 0; */
 	font-kerning: none;
 	text-rendering: geometricPrecision;
 	/* overflow: hidden; */
 	box-sizing: border-box; /* Include padding and border in width calculation */
 	max-width: 100%; /* Ensure content doesn't exceed container */
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	/* font-family: var(--mono); */
+	line-height: 1.4;
+	text-rendering: geometricPrecision;
+	margin: 0 auto;
+	left: 50%;
+	transform: translateX(-50%);
+	height: 100vh;
 }
+
+
 @media (max-width: 1200px) {
 	.transcriptText {
 		font-size: 15px;
+		width: 70ch;
 	}
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
 	.transcriptText {
 		font-size: 14px;
 	}
@@ -335,49 +357,29 @@ MAIN TEXT AREA
 
 @media (max-width: 700px) {
 	.transcriptText {
+		width: 65ch;
 		font-size: 13px;
 	}
 }
 
-@media (max-width: 500px) {
+@media (max-width: 550px) {
 	.transcriptText {
 		font-size: 12px;
+		width: 55ch;
+	}
+}
+@media (max-width: 470px) {
+	.transcriptText {
+		width: 45ch;
+	}
+}
+@media (max-width: 370px) {
+	.transcriptText {
+		width: 40ch;
 	}
 }
 
 
-/* Character measurement element - matches transcriptText font sizes exactly */
-	.char-measure {
-		font-family: var(--mono);
-		font-size: 16px;
-		line-height: 1.4;
-		text-rendering: geometricPrecision;
-	}
-	
-	/* Responsive font sizes - must match transcriptText exactly */
-	@media (max-width: 1200px) {
-		.char-measure {
-			font-size: 15px !important;
-		}
-	}
-	
-	@media (max-width: 900px) {
-		.char-measure {
-			font-size: 14px !important;
-		}
-	}
-	
-	@media (max-width: 700px) {
-		.char-measure {
-			font-size: 13px !important;
-		}
-	}
-	
-	@media (max-width: 500px) {
-		.char-measure {
-			font-size: 12px !important;
-		}
-	}
 .hl_word {
 	/* background-color: yellow; */
 	color: var(--highlight-word-color);
@@ -411,15 +413,25 @@ MAIN TEXT AREA
 	text-transform: uppercase;
 	font-size: 16px;
 	line-height: 1.4em;
-	font-weight: bold;
-	background: linear-gradient(to top,
-					rgba(0, 0, 0, 0) 0%,
-					var(--color-bg) 40%,
-					var(--color-bg) 100%);
-	transition: opacity 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750);
+	/* font-weight: bold; */
+/* 	background: linear-gradient(to top,
+		rgba(0, 0, 0, 0) 0%,
+		var(--color-bg) 40%,
+		var(--color-bg) 100%);
+	transition: opacity 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750); */
 	padding: 3vh 0 5vh;
 }
-
+.story .instanceData {
+/* 	background: linear-gradient(to top,
+		rgba(0, 0, 0, 0) 0%,
+		var(--color-bg-story) 40%,
+		var(--color-bg-story) 100%); */
+}
+.instanceData.bigDecade {
+	text-transform: none;
+	font-size: 25px;
+	color: white;
+}
 .byline {
 	text-align: center;
 	width: 100%;
@@ -460,26 +472,45 @@ BAR RIGHT SIDE
 .barContainer {
 	position: absolute;
 	bottom: 0px;
-	left:  50%;
+	left:  calc(50% + 20px);
 	transform: translateX(-50%);
-	height: 50%;
-	width: 100%;
-	max-width: 1400px;
+	height: 60%;
+	width: calc(100% - 65px);
+	max-width: 160ch;
 	pointer-events: none;
-	padding-top: 40px;
 	background: linear-gradient(to bottom, 
 		rgba(0, 0, 0, 0) 0%,
 		var(--color-bg) 20%,
 		var(--color-bg) 100%
 	);
 }
+.story .barContainer {
+	background: linear-gradient(to bottom,
+		rgba(0, 0, 0, 0) 0%,
+		var(--color-bg-story) 20%,
+		var(--color-bg-story) 100%
+	);
+}
+.story .barContainer .volumeBarHL {
+	opacity:  0;
+}
 @media (max-width: 768px) {
 	.barContainer {
-		height: 50%;
+		height: 65%;
+		width: calc(100% - 15px);
+		left: 2px;
+		transform: translateX(0%);
 		background: linear-gradient(to bottom,
-					rgba(0, 0, 0, 0) 0%,
-					var(--color-bg) 15%,
-					var(--color-bg) 100%);
+			rgba(0, 0, 0, 0) 0%,
+			var(--color-bg) 15%,
+			var(--color-bg) 100%);
+	}
+	.story .barContainer {
+		background: linear-gradient(to bottom,
+			rgba(0, 0, 0, 0) 0%,
+			var(--color-bg-story) 15%,
+			var(--color-bg-story) 100%
+		);
 	}
 	.instanceData {
 		font-size: 14px;

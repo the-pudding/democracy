@@ -1,32 +1,22 @@
 /**
- * Processes a block of text to create a monospaced "wall of text" effect,
- * centering the word "democracy".
+ * Processes a block of text to create a monospaced "wall of text" grid,
+ * placing the word "democracy" at a specific calculated position.
  */
-
-function replaceSpacesExceptHTML(str) {
-    return str.replace(/>[^<]*</g, match => 
-        match.replace(/ /g, '&nbsp;')
-    );
-}
 
 function cleanText(text) {
     return text
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/<br\s*\/?>/gi, ' ')
         .replace(/<!--.*?-->/g, '')
-        .replace(/&#160;|\u00A0/g, ' ')
+        .replace(/&#160;|\u00A0/g, ' ') // Clean pre-existing non-breaking spaces
         .replace(/\s+/g, ' ')
         .trim();
 }
 
-function getVisualLength(text) {
-    return text.replace(/<[^>]*>/g, '').length;
-}
-
-function stripAllNewlines(str) {
-    return str.replace(/[\r\n\u2028\u2029]/g, '').replace(/\s*\n\s*/g, ' ');
-}
-
+/**
+ * Maps a visual character position (ignoring HTML tags) to an actual
+ * index in a string that contains HTML markup.
+ */
 function mapVisualToActual(text, visualPos) {
     let actual = 0;
     let visual = 0;
@@ -43,88 +33,123 @@ function mapVisualToActual(text, visualPos) {
     return actual;
 }
 
-export function processText(text, lineLength) {
-    if (!text || lineLength <= 0) {
+
+export function processText(text, lineLength, title) {
+    const flooredLineLength = Math.floor(lineLength);
+    if (!text || flooredLineLength <= 0) {
         return { prologue: '', democracyRow: '', epilogue: '' };
     }
 
     const cleanedText = cleanText(text);
-    const visualText = cleanedText.replace(/<[^>]*>/g, '');
-    const match = visualText.match(/\b(democracy)\b/i);
+    let match = cleanedText.match(/\b(democracy)\b/i);
+    // if (title == "yes") {
+    //     match = cleanedText.match(/\b(alvin chang)\b/i);
+    // }
     
     if (!match) {
-        return { 
-            prologue: cleanedText.replace(/<[^>]*>/g, '').split(' ').join('&nbsp;'), 
-            democracyRow: '', 
-            epilogue: '' 
-        };
+        // Fallback for text without the keyword.
+        return { prologue: '', democracyRow: cleanedText, epilogue: '' };
     }
 
-    const centerPos = Math.floor(lineLength / 2) - Math.floor(match[1].length / 2);
-    const startPos = Math.max(0, match.index - centerPos);
-    
-    if (startPos <= 0) {
-        const padding = Math.max(0, centerPos - match.index);
-        const textEnd = Math.min(lineLength - padding, visualText.length);
-        
-        let actualEnd = mapVisualToActual(cleanedText, textEnd);
-        // For ASCII art, don't break at word boundaries - break at exact character positions
-        // if (textEnd < visualText.length && visualText[textEnd] !== ' ') {
-        //     const lastSpace = visualText.lastIndexOf(' ', textEnd);
-        //     if (lastSpace > 0) {
-        //         actualEnd = mapVisualToActual(cleanedText, lastSpace);
-        //     }
-        // }
-        
-        const democracyText = cleanedText.substring(0, actualEnd);
-        const epilogueText = cleanedText.substring(actualEnd).trim();
-        
-        return {
-            prologue: '',
-            democracyRow: replaceSpacesExceptHTML('&nbsp;'.repeat(padding) + democracyText).replace(/\b(democracy)\b/i, '<span class="hl_word">$1</span>'),
-            epilogue: epilogueText.replace(/<[^>]*>/g, '').split(' ').join('&nbsp;')
-        };
+    // --- 1. Calculate target start index for "democracy" ---
+    const targetLength = Math.floor(flooredLineLength * 2 + flooredLineLength / 2 - 4);
+    const ellipsis = '...';
+
+    // --- 2. Prepare plain text blocks (NO &nbsp; padding yet) ---
+    let beforeText = cleanedText.substring(0, match.index);
+    let afterText = cleanedText.substring(match.index + match[0].length);
+    let paddingAmount = 0;
+
+    if (beforeText.length > targetLength) {
+        beforeText = ellipsis + beforeText.substring(beforeText.length - (targetLength - ellipsis.length));
+    } else {
+        paddingAmount = targetLength - beforeText.length;
     }
 
-    let endPos = startPos + lineLength;
-    // For ASCII art, don't break at word boundaries - break at exact character positions
-    // if (endPos < visualText.length && visualText[endPos] !== ' ') {
-    //     const lastSpace = visualText.lastIndexOf(' ', endPos);
-    //     if (lastSpace > startPos) {
-    //         endPos = lastSpace;
-    //     }
-    // }
+    if (afterText.length > targetLength) {
+        afterText = afterText.substring(0, targetLength - ellipsis.length) + ellipsis;
+    }
 
-    const actualStart = mapVisualToActual(cleanedText, startPos);
-    const actualEnd = mapVisualToActual(cleanedText, endPos);
-    
-    let prologueText = cleanedText.substring(0, actualStart);
-    const democracyText = cleanedText.substring(actualStart, actualEnd);
-    let epilogueText = cleanedText.substring(actualEnd).trim();
-
-    if (startPos > 0 && visualText[startPos] !== ' ' && visualText[startPos - 1] !== ' ') {
-        prologueText += '-';
+    // --- 3. Combine into a single text string WITH HTML for calculations ---
+    let fullTextContent = beforeText + match[0] + afterText;
+    if (title == "yes") {
+         // fullTextContent = " democracy".repeat(400) + " " + match[0] + " democracy".repeat(400);
     }
     
-    const prologueVisual = prologueText.replace(/<[^>]*>/g, '');
-    if (prologueVisual.length > 0 && /^[a-z]/.test(prologueVisual)) {
-        prologueText = '... ' + prologueText;
-    }
-    
-    const epilogueVisual = epilogueText.replace(/<[^>]*>/g, '');
-    if (epilogueVisual.length > 0 && !/[.?!"]$/.test(epilogueVisual)) {
-        epilogueText += ' ...';
-    }
+    // --- 4. Calculate VISUAL boundaries on a plain-text version ---
+    const visualText = fullTextContent.replace(/<[^>]*>/g, '');
+    const visualMatchStart = visualText.indexOf(match[0]);
+    const visualMatchEnd = visualMatchStart + match[0].length;
+    const visualMatchCenter = visualMatchStart + Math.floor(match[0].length / 2);
 
-    const prologueVisualLen = getVisualLength(prologueText);
-    const paddingNeeded = prologueVisualLen % lineLength;
-    const padding = paddingNeeded > 0 ? lineLength - paddingNeeded : 0;
-    const finalPrologue = '&nbsp;'.repeat(padding) + prologueText;
+    // Visual boundaries for onedegree (400 chars total)
+    let oneDegreeStart = Math.max(0, visualMatchCenter - 200);
+    let oneDegreeEnd = Math.min(visualText.length, visualMatchCenter + 200);
+
+    // Visual boundaries for democracy-row (200 chars total)
+    let democracyRowStart = Math.max(0, visualMatchCenter - 100);
+    let democracyRowEnd = Math.min(visualText.length, visualMatchCenter + 100);
+
+    // --- Adjust boundaries to nearest full word ---
+    const findNextWordStart = (str, index) => {
+        const i = str.indexOf(' ', index);
+        return i === -1 ? index : i + 1;
+    };
+    const findPrevWordEnd = (str, index) => {
+        const i = str.lastIndexOf(' ', index);
+        return i === -1 ? index : i;
+    };
+    
+    oneDegreeStart = findNextWordStart(visualText, oneDegreeStart);
+    democracyRowStart = findNextWordStart(visualText, democracyRowStart);
+    democracyRowEnd = findPrevWordEnd(visualText, democracyRowEnd);
+    oneDegreeEnd = findPrevWordEnd(visualText, oneDegreeEnd);
+
+    // --- Sanitize boundaries to prevent overlaps ---
+    democracyRowStart = Math.min(democracyRowStart, visualMatchStart);
+    democracyRowEnd = Math.max(democracyRowEnd, visualMatchEnd);
+    oneDegreeStart = Math.min(oneDegreeStart, democracyRowStart);
+    oneDegreeEnd = Math.max(oneDegreeEnd, democracyRowEnd);
+
+    // --- 5. Map VISUAL boundaries to ACTUAL indices in the string with markup ---
+    const actualOneDegreeStart = mapVisualToActual(fullTextContent, oneDegreeStart);
+    const actualDemocracyRowStart = mapVisualToActual(fullTextContent, democracyRowStart);
+    const actualMatchStart = mapVisualToActual(fullTextContent, visualMatchStart);
+    const actualMatchEnd = mapVisualToActual(fullTextContent, visualMatchEnd);
+    const actualDemocracyRowEnd = mapVisualToActual(fullTextContent, democracyRowEnd);
+    const actualOneDegreeEnd = mapVisualToActual(fullTextContent, oneDegreeEnd);
+
+    // --- 6. Slice the text using ACTUAL indices and reconstruct ---
+    const part1 = fullTextContent.substring(0, actualOneDegreeStart);
+    const part2 = fullTextContent.substring(actualOneDegreeStart, actualDemocracyRowStart);
+    const part3 = fullTextContent.substring(actualDemocracyRowStart, actualMatchStart);
+    const part4 = fullTextContent.substring(actualMatchStart, actualMatchEnd);
+    const part5 = fullTextContent.substring(actualMatchEnd, actualDemocracyRowEnd);
+    const part6 = fullTextContent.substring(actualDemocracyRowEnd, actualOneDegreeEnd);
+    const part7 = fullTextContent.substring(actualOneDegreeEnd);
+
+    // --- 7. Assemble the final HTML, adding the &nbsp; padding now ---
+    const padding = '&nbsp;'.repeat(paddingAmount);
+
+    const highlightedHtml = [
+        padding, // Prepend the padding
+        part1,
+        `<span class="onedegree">`,
+        part2,
+        `<span class="democracy-row">`,
+        part3,
+        `<span class="hl_word">${part4}</span>`,
+        part5,
+        `</span>`, // end .democracy-row
+        part6,
+        `</span>`, // end .onedegree
+        part7
+    ].join('');
 
     return {
-        prologue: finalPrologue.replace(/<[^>]*>/g, '').split(' ').join('&nbsp;'),
-        democracyRow: replaceSpacesExceptHTML(democracyText).replace(/\b(democracy)\b/i, '<span class="hl_word">$1</span>'),
-        epilogue: epilogueText.replace(/<[^>]*>/g, '').split(' ').join('&nbsp;')
+        prologue: '',
+        democracyRow: highlightedHtml,
+        epilogue: ''
     };
 }
 
@@ -133,3 +158,4 @@ export function convertChamber(c) {
     if (c === "House") return "Rep.";
     return c;
 }
+

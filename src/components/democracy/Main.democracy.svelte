@@ -1,11 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
-	import Scrolly from '$components/helpers/Scrolly.svelte';
-	import Bars from '$components/democracy/Bars.democracy.svelte';
-	import data from '$data/speeches.json';
-	// Corrected import path for your project structure
-	import { processText, convertChamber } from '$components/helpers/textUtils.js';
+	import { onMount } from "svelte";
+	import { fade } from "svelte/transition";
+	import Scrolly from "$components/helpers/Scrolly.svelte";
+	import Bars from "$components/democracy/Bars.democracy.svelte";
+	import Dots from "$components/democracy/Dots.democracy.svelte";
+	import data from "$data/speeches.json";
+	import {
+		processText,
+		convertChamber
+	} from "$components/helpers/textUtils.js";
 
 	// Props
 	let { copy } = $props();
@@ -13,247 +16,244 @@
 	// Component State
 	let value = $state(0);
 	let scrollProgress = $state(0);
-	let barVariable = $state("speeches_with_word");
+	let lastScrollY = $state(0);
+	let barVariable = $state("total_pct");
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
-	let charWidth = $state(0);
-	let charMeasureRef = null;
+	let transcriptWidth = $state(0);
+	let transcriptHeight = $state(0);
 	let stepElements = [];
 	const triggerPoint = 100;
+	let mounted = $state(false);
 
-	// Constants
-	const beginYear = 1872;
-	const endYear = 2025;
-	const yearRange = Array.from({ length: endYear - beginYear + 1 }, (_, i) => i + beginYear);
-	const monthRange = Array.from({ length: 12 }, (_, i) => i + 1);
+	// --- REFACTORED DATA HANDLING ---
+	// Initialize data structures as empty state variables.
+	// They will be populated on the client-side inside onMount.
+	let mergedData = $state({});
+	let stepIndices = $state([{ year: 1872, month: 1, story: true, stepIndex: 0 }]);
+	// --- END REFACTOR ---
 
-	// One-time data processing
-	const mergedData = (() => {
-		const merged = {};
-		const copyLookup = new Map(copy?.story?.map(item => [`${item.year}-${item.month}`, item]) || []);
+	function getLineLength() {
+		if (typeof window === "undefined") return 80;
+		const width = window.innerWidth;
+		if (width <= 370) return 40;
+		if (width <= 470) return 45;
+		if (width <= 550) return 55;
+		if (width <= 700) return 65;
+		if (width <= 1000) return 70;
+		if (width <= 1200) return 70;
+		return 80;
+	}
+
+	let lineLength = $state(getLineLength());
+
+	// These derived values will now update reactively once mergedData and stepIndices are populated on mount.
+	const currentStepIndex = $derived(Math.floor(value ?? 0));
+	const currentStepData = $derived(stepIndices[currentStepIndex]);
+	const year = $derived(currentStepData?.year);
+	const month = $derived(currentStepData?.month);
+	const currentRow = $derived(mergedData?.[year]?.[month] ?? currentStepData);
+
+	const storyText = $derived(
+		processText(currentRow?.text || "", lineLength, currentRow?.title || "")
+	);
+	const showStoryElements = $derived(currentRow?.story && value >= 0);
+
+	onMount(() => {
+		// --- DATA PROCESSING MOVED HERE ---
+		// This logic now runs safely in the browser, preventing SSR crashes.
+		const processedData = {};
+		const copyLookup = new Map(
+			copy?.story?.map((item) => [`${item.year}-${item.month}`, item]) || []
+		);
 		for (const year in data) {
-			merged[year] = {};
+			processedData[year] = {};
 			for (const month in data[year]) {
 				const key = `${year}-${month}`;
 				if (copyLookup.has(key)) {
-					merged[year][month] = { ...copyLookup.get(key), story: true };
+					processedData[year][month] = { ...copyLookup.get(key), story: true };
 				} else {
-					merged[year][month] = { ...data[year][month], story: false };
+					processedData[year][month] = { ...data[year][month], story: false };
 				}
 			}
 		}
 		copyLookup.forEach((item, key) => {
-			const [year, month] = key.split('-');
-			if (!merged[year]?.[month]) {
-				if (!merged[year]) merged[year] = {};
-				merged[year][month] = { ...item, story: true };
+			const [year, month] = key.split("-");
+			if (!processedData[year]?.[month]) {
+				if (!processedData[year]) processedData[year] = {};
+				processedData[year][month] = { ...item, story: true };
 			}
 		});
-		return merged;
-	})();
+		mergedData = processedData; // Update state, which triggers derived values
 
-	const stepIndices = (() => {
-		const indices = [];
-		let currentIndex = 0;
-		yearRange.forEach((y, yearIndex) => {
-			const currentMonthRange = y === 1873 ? [1, 2, 3] : monthRange;
-			currentMonthRange.forEach((m, monthIndex) => {
-				indices.push({ year: y, month: m, yearIndex, monthIndex, stepIndex: currentIndex });
-				currentIndex++;
-			});
-		});
-		return indices;
-	})();
-
-	// Derived State (values computed from other state)
-	const currentStepIndex = $derived(Math.floor(value));
-	const currentStepData = $derived(stepIndices[currentStepIndex] || stepIndices[0]);
-	const year = $derived(currentStepData.year);
-	const month = $derived(currentStepData.month);
-	const charsPerRow = $derived(charWidth > 0 ? Math.floor(containerWidth / charWidth) - 0.5: 0);
-
-	// Declare state variable for the current row
-	let currentRow = $state(undefined);
-
-	$effect(() => {
-	    console.log('Values updated:', {
-	        lineWidth: charsPerRow,
-	        charWidth,
-	        containerWidth,
-	        charMeasureRef: !!charMeasureRef,
-	        windowWidth: window.innerWidth
-	    });
-	});
-	// Use an effect to update currentRow when year/month change
-	$effect(() => {
-		const maybeRow = mergedData?.[year]?.[month];
-		if (maybeRow) {
-			currentRow = maybeRow;
-		}
-	});
-
-	// Now declare derived values that DEPEND on currentRow
-	const storyText = $derived(processText(currentRow?.text || "", charsPerRow));
-	const showStoryElements = $derived((currentRow?.story || year === 1872) && value > 0);
-
-	// Media query listeners for font size changes
-	let mediaQuery700, mediaQuery900;
-	
-	// Lifecycle and Event Handlers
-	onMount(() => {
-		const measureCharWidth = () => {
-			if (charMeasureRef) {
-				// Get the actual text layout element to match its styling
-				const textLayoutElement = document.querySelector('.transcriptText');
-				if (textLayoutElement) {
-					const textStyle = window.getComputedStyle(textLayoutElement);
-					// Copy the exact font properties from the text layout
-					charMeasureRef.style.fontSize = textStyle.fontSize;
-					charMeasureRef.style.fontFamily = textStyle.fontFamily;
-					charMeasureRef.style.lineHeight = textStyle.lineHeight;
-					charMeasureRef.style.textRendering = textStyle.textRendering;
-				}
-
-				const rect = charMeasureRef.getBoundingClientRect();
-				const measuredWidth = rect.width / 20;
-				charWidth = measuredWidth;
-				
-				console.log('CharWidth measurement:', {
-					elementWidth: rect.width,
-					measuredWidth,
-					containerWidth,
-					charsPerRow: Math.floor(containerWidth / measuredWidth),
-					windowWidth: window.innerWidth
+		const processedIndices = [{ year: 1872, month: 1, story: true }];
+		for (const year in processedData) {
+			for (const month in processedData[year]) {
+				processedIndices.push({
+					year: parseInt(year),
+					month: parseInt(month),
 				});
 			}
-		};
-		
-		// Initial measurement
-		measureCharWidth();
-		
-		// Listen for window resize
-		window.addEventListener('resize', measureCharWidth);
-		
-		// Use ResizeObserver to detect when the measurement element's font size changes
-		let resizeObserver;
-		if (charMeasureRef && window.ResizeObserver) {
-			resizeObserver = new ResizeObserver(() => {
-				measureCharWidth();
-			});
-			resizeObserver.observe(charMeasureRef);
 		}
-		
-		// Also listen for media query changes to catch font size changes
-		mediaQuery700 = window.matchMedia('(max-width: 700px)');
-		mediaQuery900 = window.matchMedia('(max-width: 900px)');
-		const handleMediaChange = () => {
-			// Small delay to let CSS apply
-			setTimeout(measureCharWidth, 10);
-		};
-		mediaQuery700.addEventListener('change', handleMediaChange);
-		mediaQuery900.addEventListener('change', handleMediaChange);
+		processedIndices.sort((a, b) => {
+			if (a.year !== b.year) return a.year - b.year;
+			return a.month - b.month;
+		});
+		stepIndices = processedIndices.map((item, index) => ({
+			...item,
+			stepIndex: index
+		})); // Update state
+		// --- END DATA PROCESSING ---
 
-		const handleScroll = () => {
-			if (!stepElements.length) return;
-			const currentStepElement = stepElements[currentStepIndex];
-			if (currentStepElement) {
-				const rect = currentStepElement.getBoundingClientRect();
-				const progress = Math.max(0, Math.min(100, (triggerPoint - rect.top) / rect.height * 100));
-				scrollProgress = Math.round(progress);
-			}
-		};
-		window.addEventListener('scroll', handleScroll, { passive: true });
 
+		mounted = true; // Set flag to true only when in the browser
+		const handleResize = () => {
+			lineLength = getLineLength();
+		};
+		window.addEventListener("resize", handleResize);
+		lastScrollY = window.scrollY;
 		return () => {
-			window.removeEventListener('resize', measureCharWidth);
-			window.removeEventListener('scroll', handleScroll);
-			if (resizeObserver) {
-				resizeObserver.disconnect();
-			}
-			mediaQuery700.removeEventListener('change', handleMediaChange);
-			mediaQuery900.removeEventListener('change', handleMediaChange);
+			window.removeEventListener("resize", handleResize);
 		};
 	});
+
+	function handleScroll() {
+		if (!stepElements.length || currentStepIndex === undefined) return;
+		const currentScrollY = window.scrollY;
+		const scrollDirection = currentScrollY > lastScrollY ? "down" : "up";
+		lastScrollY = currentScrollY;
+		const currentStepElement = stepElements[currentStepIndex];
+		if (!currentStepElement) return;
+		const rect = currentStepElement.getBoundingClientRect();
+		const nextStepElement = stepElements[currentStepIndex + 1];
+		let scrollDuration;
+		if (nextStepElement) {
+			const nextRect = nextStepElement.getBoundingClientRect();
+			scrollDuration = nextRect.top - rect.top;
+		} else {
+			scrollDuration = window.innerHeight;
+		}
+		if (scrollDuration <= 0) {
+			scrollDuration = window.innerHeight;
+		}
+		const distanceScrolled = triggerPoint - rect.top;
+		const rawProgress = (distanceScrolled / scrollDuration) * 100;
+		if (
+			scrollDirection === "down" &&
+			rawProgress < scrollProgress &&
+			scrollProgress < 100
+		) {
+			return;
+		}
+		if (
+			scrollDirection === "up" &&
+			rawProgress > scrollProgress &&
+			scrollProgress > 0
+		) {
+			return;
+		}
+		scrollProgress = Math.round(Math.max(0, Math.min(100, rawProgress)));
+	}
 
 	function handleToggleClick(event) {
 		barVariable = event.target.value;
 	}
 </script>
 
-<div bind:this={charMeasureRef} class="char-measure" style="position: absolute; visibility: hidden; left: -9999px; white-space: pre; font-family: var(--mono); font-size: 13px; line-height: 1.4; text-rendering: geometricPrecision;">Mpdk,aS821kjSxc.asq2</div>
+<svelte:window on:scroll={handleScroll} />
 
 <section id="scrolly">
-	{#if showStoryElements}
-		<div class="progressBar" style="height: {scrollProgress}%;"></div>
-	{/if}
+	<div
+		class="visualContainer"
+		class:title={currentRow?.title}
+		class:annotate={currentRow?.annotate}
+		class:story={showStoryElements}
+		bind:clientWidth={containerWidth}
+		bind:clientHeight={containerHeight}
+	>
+		<!-- This #if block now prevents the Dots component from running on the server at all -->
+		{#if mounted && currentRow && containerWidth > 0}
+			<Dots
+				{year}
+				{month}
+				{containerWidth}
+				{containerHeight}
+				{barVariable}
+				{currentRow}
+				{transcriptWidth}
+				{transcriptHeight}
+			/>
+		{/if}
 
-	<div class="visualContainer" class:annotate={currentRow?.annotate} class:story={showStoryElements} bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
+		{#if showStoryElements}
+			<div class="progressBar" style="width: {scrollProgress}%;"></div>
+		{/if}
 		{#if currentRow?.themes}
 			<div class="debug">{currentRow.themes}</div>
 		{/if}
-
 		{#if showStoryElements && currentRow?.context}
 			<div class="context">{currentRow.context}</div>
 		{/if}
+		<div class="transcriptText text-layout-container">
+			{#if currentRow}
+				{#if currentRow.annotate}
+					<div class="instanceData bigDecade">{currentRow.decades}</div>
+				{:else if currentRow.month}
+					<div class="instanceData" style:opacity={year > 1872 ? 1 : 0}>
+						{currentRow.display_month || currentRow.month} / {currentRow.day} / {currentRow.year}
+						<br />
+						{convertChamber(currentRow.chamber)}
+						{currentRow.firstname}
+						{currentRow.lastname}
+						{#if currentRow.party?.[0]}
+							({currentRow.party[0]}-{currentRow.state})
+						{/if}
+					</div>
+				{/if}
 
-		<div class=" transcriptText text-layout-container">
-			{#if currentRow?.month}
-				<div class="instanceData" style:opacity={year > beginYear ? 1 : 0}>
-					{currentRow.display_month || currentRow.month} / {currentRow.day} / {currentRow.year}
-					<br />
-					{convertChamber(currentRow.chamber)} {currentRow.firstname} {currentRow.lastname}
-					{#if currentRow.party?.[0]}
-						({currentRow.party[0]}-{currentRow.state})
-					{/if}
+				{#if storyText.democracyRow}
+					<div class="democracy-row-container"
+						bind:clientWidth={transcriptWidth}
+						bind:clientHeight={transcriptHeight}
+					>
+						{@html storyText.democracyRow}
+					</div>
+				{/if}
+			{:else}
+				<div class="instanceData" style:opacity={year > 1872 ? 0.5 : 0}>
+					{month} / {year}
 				</div>
 			{/if}
-
-			{#if storyText.prologue}
-				<div class="prologue-container">
-					{@html storyText.prologue}
-				</div>
-			{/if}
-			{#if storyText.democracyRow}
-				<div class="democracy-row-container">
-					{@html storyText.democracyRow}
-				</div>
-			{/if}
-			{#if storyText.epilogue}
-				<div class="epilogue-container">
-					{@html storyText.epilogue}
-				</div>
-			{/if}
-		</div>
-
-		<div class="bars-container" style:opacity={year > beginYear ? 1 : 0}>
-			<div class="toggle">
-				<button class:selected={barVariable === "total_pct"} value="total_pct" onclick={handleToggleClick}>
-					% of speeches
-				</button>
-				<button class:selected={barVariable === "speeches_with_word"} value="speeches_with_word" onclick={handleToggleClick}>
-					# of speeches
-				</button>
-			</div>
-			<Bars {year} {month} {containerWidth} {containerHeight} {barVariable} />
 		</div>
 	</div>
 
-	<Scrolly bind:value top={triggerPoint}>
-		{#each stepIndices as step, i}
-			{@const rowData = mergedData?.[step.year]?.[step.month]}
-			<div class="step" class:story={rowData?.story || step.year === 1872} bind:this={stepElements[i]}></div>
-		{/each}
-	</Scrolly>
+	<!-- By keying this block to the length of the steps, we force Scrolly to re-initialize
+	     once the full list of steps has been processed on mount. -->
+	{#key stepIndices.length}
+		<Scrolly bind:value top={triggerPoint}>
+			{#each stepIndices as step, i}
+				{@const rowData = mergedData?.[step.year]?.[step.month]}
+				<div
+					class="step"
+					class:story={rowData?.story || step.story}
+					bind:this={stepElements[i]}
+				></div>
+			{/each}
+		</Scrolly>
+	{/key}
 </section>
 
 <style>
-	.visualContainer, .text-layout-container, .prologue-container, .democracy-row-container, .epilogue-container {
-	    box-sizing: border-box;
+	.visualContainer,
+	.text-layout-container,
+	.prologue-container,
+	.democracy-row-container,
+	.epilogue-container {
+		box-sizing: border-box;
 	}
-	/* --- Your existing styles --- */
 	.bars-container {
 		opacity: 0;
-		transition: opacity 500ms cubic-bezier(0.250, 0.250, 0.750, 0.750);
+		transition: opacity 500ms cubic-bezier(0.25, 0.25, 0.75, 0.75);
 		display: block;
 	}
 	.toggle {
@@ -276,12 +276,11 @@
 		background: purple;
 	}
 	.progressBar {
-		position: fixed;
+		position: absolute;
+		height: 10px;
 		top: 0;
 		left: 0;
-		width: 100%;
-		background-color: rgba(0, 0, 0, 0.2);
-		z-index: -1;
+		background-color: var(--color-progress);
 	}
 	.debug {
 		position: fixed;
@@ -294,33 +293,12 @@
 		color: #fff;
 		text-align: right;
 	}
-
-	/* --- Styles for the text layout --- */
-	.text-layout-container {
-		position: absolute;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		font-family: var(--mono);
-		line-height: 1.4;
-		text-rendering: geometricPrecision;
-	}
-	.prologue-container,
-	.democracy-row-container,
-	.epilogue-container {
-		/* Add this line to prevent the browser from breaking lines at hyphens */
-		hyphens: none;
-	}
-
 	.democracy-row-container {
 		position: absolute;
 		left: 0;
 		width: 100%;
-		color: var(--democracy-row-color);
-		bottom: 65%;
-		transform: translateY(-50%);
-		height: 1.4em;
+		bottom: 78%;
+		transform: translateY(50%);
 	}
 	.prologue-container {
 		position: absolute;
@@ -343,4 +321,9 @@
 		color: var(--highlight-word-color);
 		background: black;
 	}
+	.story .prologue-container,
+	.story .epilogue-container {
+		color: var(--democracy-row-color);
+	}
 </style>
+

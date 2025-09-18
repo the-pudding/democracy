@@ -96,9 +96,9 @@
 	}
 	
 	// Add scroll listener for more precise triggering
-	function handleScroll() {
-		findActiveStep();
-	}
+	// function handleScroll() {
+	// 	findActiveStep();
+	// }
 	
 	$effect(() => {
 		for (let i = 0; i < increments + 1; i++) {
@@ -108,11 +108,11 @@
 		update();
 		
 		// Add scroll listener
-		window.addEventListener('scroll', handleScroll);
+		// window.addEventListener('scroll', handleScroll);
 		
 		// Cleanup function
 		return () => {
-			window.removeEventListener('scroll', handleScroll);
+			// window.removeEventListener('scroll', handleScroll);
 			intersectionObservers.forEach(observer => observer.disconnect());
 		};
 	});

@@ -143,8 +143,11 @@
 			p.background(30, 13, 33);
 			decade = String(Math.floor(year / 10) * 10);
 			for (let dot of dots) {
-				dot.move();
 				dot.update();
+				if (!dot.arrived) {
+					dot.setDisplay();
+					dot.move();
+				}
 				dot.display();
 			}
 
@@ -167,6 +170,10 @@
 
 		function yearToXAxis(y) {
 			return (155 - (2030 - y))/155
+		}
+
+		function vectorsEqual(v1, v2) {
+		  return v1.x === v2.x && v1.y === v2.y;
 		}
 
 		class Dot {
@@ -194,6 +201,8 @@
 				this.maxForce = p.random(0.05, 0.5);
 				this.size = dotSize;
 				this.opacity = 0;
+				this.arrived = false;
+				this.color = defaultColor;
 				// this.color = categoryColors[category];
 			}
 
@@ -236,6 +245,12 @@
 				this.vel.limit(this.maxSpeed);
 				this.pos.add(this.vel);
 				this.acc.mult(0);
+
+				if (this.targetPos.x == this.pos.x && this.targetPos.y == this.pos.y) {
+					this.arrived = true;
+				} else {
+					this.arrived = false;
+				}
 			}
 
 			move() {
@@ -264,20 +279,22 @@
 				}
 			}
 
-			display() {
-				let color = defaultColor;
+			setDisplay() {
+				this.color = defaultColor;
 				if (colorByDecade) {
 					if (decade_themes[decade].includes(this.category)) {
-						color = hlColor;
+						this.color = hlColor;
 					}
 				} else {
 					if (this.category == hlCategory) {
-						color = hlColor;
+						this.color = hlColor;
 					}
 				}
-
-				p.stroke(color[0], color[1], color[2], this.opacity);
 				p.strokeWeight(this.size);
+			}
+
+			display() {
+				p.stroke(this.color[0], this.color[1], this.color[2], this.opacity);
 				p.point(this.pos.x, this.pos.y, this.size);
 			}
 		}

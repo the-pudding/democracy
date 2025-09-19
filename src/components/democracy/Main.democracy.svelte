@@ -30,7 +30,7 @@
 	// Initialize data structures as empty state variables.
 	// They will be populated on the client-side inside onMount.
 	let mergedData = $state({});
-	let stepIndices = $state([{ year: 1872, month: 1, story: true, stepIndex: 0 }]);
+	let stepIndices = $state([]);
 	// --- END REFACTOR ---
 
 	function getLineLength() {
@@ -86,7 +86,7 @@
 		});
 		mergedData = processedData; // Update state, which triggers derived values
 
-		const processedIndices = [{ year: 1872, month: 1, story: true }];
+		const processedIndices = [];
 		for (const year in processedData) {
 			for (const month in processedData[year]) {
 				processedIndices.push({

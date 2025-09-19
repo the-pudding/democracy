@@ -24,8 +24,10 @@
 	// const hlColor = [255, 0, 212];
 	const hlColor = [255, 0, 208];
 	let decade = Math.floor(year / 10) * 10;
-	const barChart = true;
+	const barChart = false;
 	const colorByDecade = false;
+	let dotPadding = 1;
+	const bottomPadding = 30;
 
 	const hlCategory = "authoritarian_threats";
 	const decade_themes = {
@@ -50,7 +52,7 @@
 	// The main p5.js sketch function
 	const sketch = (p) => {
 		let dots = [];
-		let denominator = 4;
+		let denominator = 5;
 
 		const categories = [
 			"authoritarian_threats",
@@ -92,6 +94,7 @@
 			const canvasH = containerHeight || p.windowHeight;
 			p.createCanvas(canvasW, canvasH);
 			dotSizeSet();
+			resizeCanvas();
 			// --- DOT CREATION FOR ALL DATA ---
 			dots = [];
 
@@ -102,6 +105,7 @@
 				if (yearData) {
 					let counter = 0;
 					const totalCol = yearData.total;
+
 					for (const category of categories) {
 						const count = yearData[category];
 						if (typeof count === "number") {
@@ -121,21 +125,42 @@
 							}
 						}
 					}
+					const leftoverDots = Math.floor(totalCol / denominator) - counter;
+					for (let i = 0; i < leftoverDots; i++) {
+						dots.push(
+							new Dot(
+								Number(yearKey),
+								Math.ceil(((i + 1) / (leftoverDots + 1)) * 12),
+								"",
+								counter,
+								totalCol
+							)
+						);
+						counter++;
+					}
 				}
 			}
 		};
 
 		p.windowResized = () => {
+			resizeCanvas();
+			dotSizeSet();
+		};
+
+		function resizeCanvas() {
 			const canvasW = containerWidth || p.windowWidth;
 			const canvasH = containerHeight || p.windowHeight;
 			p.resizeCanvas(canvasW, canvasH);
-			dotSizeSet()
-		};
+			dotSizeSet();
+			if (canvasH < 800) {
+				dotPadding = 0;
+			}
+		}
 
 		function dotSizeSet() {
 			dotSize = p.width / 255 / 2;
-			if (dotSize < 3) {
-				dotSize = 3;
+			if (dotSize < 2) {
+				dotSize = 2;
 			}
 		}
 
@@ -150,21 +175,22 @@
 				}
 				dot.display();
 			}
-
-			makeAxis();
+			if (year >= 1880) {
+				makeAxis();
+			}
 		};
 
 		function makeAxis(y) {
 			p.textAlign(p.CENTER);
 			p.fill("#82657d");
 			p.noStroke();
-			p.textSize(p.constrain(p.width / 100, 13, 19));
+			p.textSize(p.constrain(p.width / 100, 12, 19));
 			let interval = 10;
 			if (p.width < 1000) {
 				interval = 20;
 			}
 			for (let i = 1880; i <= 2020; i+=interval) {
-				p.text(i, yearToXAxis(i) * p.width, p.height - 20);
+				p.text(i, yearToXAxis(i) * p.width, p.height - 10);
 			}
 		}
 
@@ -177,126 +203,133 @@
 		}
 
 		class Dot {
-			constructor(_year, _month, category, num, total) {
-				this.year = _year;
-				this.month = _month;
-				this.category = category;
-				this.pos = p.createVector(
-					p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
-					p.height / 4
-				);
-				this.targetPos = p.createVector(this.pos.x, this.pos.y);
-				this.vel = p.createVector(0, 0);
-				this.acc = p.createVector(0, 0);
-				this.total = total;
-				this.num = num;
-				if (barChart) {
-					this.finalPosPct = p.createVector( yearToXAxis(this.year) , this.num);
-				} else {
-					this.finalPosPct = p.createVector( yearToXAxis(this.year) , Math.random() * this.total / this.total);
-				}
+		    constructor(_year, _month, category, num, total) {
+		        this.year = _year;
+		        this.month = _month;
+		        this.category = category;
+		        this.pos = p.createVector(
+		            p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+		            p.height / 4
+		        );
+		        this.targetPos = p.createVector(this.pos.x, this.pos.y);
+		        this.vel = p.createVector(0, 0);
+		        this.acc = p.createVector(0, 0);
+		        this.total = total;
+		        this.num = num;
+		        if (barChart) {
+		            this.finalPosPct = p.createVector(yearToXAxis(this.year), this.num);
+		        } else {
+		            this.finalPosPct = p.createVector(
+		                yearToXAxis(this.year),
+		                (Math.random() * this.total) / this.total
+		            );
+		        }
 
-				// console.log(num, total)
-				this.maxSpeed = p.random(2, 10);
-				this.maxForce = p.random(0.05, 0.5);
-				this.size = dotSize;
-				this.opacity = 0;
-				this.arrived = false;
-				this.color = defaultColor;
-				// this.color = categoryColors[category];
-			}
+		        this.maxSpeed = p.random(2, 10);
+		        this.maxForce = p.random(0.05, 0.5);
+		        this.size = dotSize;
+		        this.opacity = 0;
+		        this.arrived = false;
+		        this.color = defaultColor;
+		        this.isFuture = true;
+		    }
 
-			update() {
-				let desired = this.targetPos.copy();
-				desired.sub(this.pos);
+		    update() {
+		        let desired = this.targetPos.copy();
+		        desired.sub(this.pos);
 
-				let distance = desired.mag();
+		        let distance = desired.mag();
 
-				// --- FIX #1: Snap to target ---
-				// If we are closer than 1 pixel, snap to the target and stop all movement.
-				if (distance < 1) {
-					this.pos.set(this.targetPos);
-					this.vel.mult(0);
-					this.acc.mult(0);
-					return; // Exit the function to prevent further calculations
-				}
+		        if (distance < 1) {
+		            this.pos.set(this.targetPos);
+		            this.vel.mult(0);
+		            this.acc.mult(0);
+		            return;
+		        }
 
-				// Scale speed based on distance (the "arrival" behavior)
-				if (distance < 100) {
-					let speed = p.map(distance, 0, 100, 0, this.maxSpeed);
-					desired.setMag(speed);
-				} else {
-					desired.setMag(this.maxSpeed);
-				}
+		        if (distance < 100) {
+		            let speed = p.map(distance, 0, 100, 0, this.maxSpeed);
+		            desired.setMag(speed);
+		        } else {
+		            desired.setMag(this.maxSpeed);
+		        }
 
-				// Calculate the steering force
-				desired.sub(this.vel);
-				let steer = desired;
-				steer.limit(this.maxForce);
+		        desired.sub(this.vel);
+		        let steer = desired;
+		        steer.limit(this.maxForce);
 
-				this.acc.add(steer);
+		        this.acc.add(steer);
+		        this.vel.mult(0.97);
 
-				// --- FIX #2: Apply Damping/Friction ---
-				// This slows the dot down over time, reducing momentum and preventing overshoot.
-				this.vel.mult(0.97);
+		        this.vel.add(this.acc);
+		        this.vel.limit(this.maxSpeed);
+		        this.pos.add(this.vel);
+		        this.acc.mult(0);
 
-				// Standard physics update
-				this.vel.add(this.acc);
-				this.vel.limit(this.maxSpeed);
-				this.pos.add(this.vel);
-				this.acc.mult(0);
+		        if (this.targetPos.x == this.pos.x && this.targetPos.y == this.pos.y) {
+		            this.arrived = true;
+		        } else {
+		            this.arrived = false;
+		        }
+		    }
 
-				if (this.targetPos.x == this.pos.x && this.targetPos.y == this.pos.y) {
-					this.arrived = true;
-				} else {
-					this.arrived = false;
-				}
-			}
+		    move() {
+		        this.isFuture = this.year > year || (this.year === year && this.month > month);
 
-			move() {
-				// Check if this dot's date is in the "future" compared to the scrolly position.
-				// The logic is: (is the year greater?) OR (are the years the same AND is the month greater?)
-				const isFuture =
-					this.year > year || (this.year === year && this.month > month);
+		        if (this.isFuture) {
+		            this.targetPos.set(
+		                p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+		                p.height / 4
+		            );
+		            this.opacity = p.lerp(this.opacity, 0, 0.1);
+		        } else {
+		            if (barChart) {
+		                // Determine the row and column from the dot's index (this.num)
+		                const rowIndex = Math.floor(this.num / 2);
+		                const colIndex = this.num % 2; // 0 for left, 1 for right
 
-				if (isFuture) {
-					// If the date has not been reached yet, send it to a random waiting position off-screen.
-					this.targetPos.set(
-						p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
-						p.height / 4
-					);
-					this.opacity = p.lerp(this.opacity, 0, 0.1);
-				} else {
-					// if (this.num > this.total/2) {
-					// 	this.finalPosPct = p.createVector( (155 - (2030 - this.year))/155 + .5, this.num - this.total/2);
-					// }
-					if (barChart) {
-						this.targetPos = p.createVector(this.finalPosPct.x * p.width,  p.height - (this.finalPosPct.y * dotSize) - 50 );
-					} else {
-						this.targetPos = p.createVector(this.finalPosPct.x * p.width,  p.height - (this.finalPosPct.y * p.height * heightRatio) - 50 );
-					}
-					this.opacity = p.lerp(this.opacity, 210, 0.01);
-				}
-			}
+		                // Get the base X position for the year
+		                const baseX = this.finalPosPct.x * p.width;
 
-			setDisplay() {
-				this.color = defaultColor;
-				if (colorByDecade) {
-					if (decade_themes[decade].includes(this.category)) {
-						this.color = hlColor;
-					}
-				} else {
-					if (this.category == hlCategory) {
-						this.color = hlColor;
-					}
-				}
-				p.strokeWeight(this.size);
-			}
+		                // Calculate the horizontal offset to create two columns
+		                // A small offset based on dotSize will place them side-by-side
+		                const xOffset = (colIndex - 0.5) * (dotSize + 1);
 
-			display() {
-				p.stroke(this.color[0], this.color[1], this.color[2], this.opacity);
-				p.point(this.pos.x, this.pos.y, this.size);
-			}
+		                // Calculate the target X and Y positions
+		                const targetX = baseX + xOffset;
+		                const targetY = p.height - rowIndex * (dotSize + dotPadding) - bottomPadding;
+
+		                this.targetPos = p.createVector(targetX, targetY);
+		                 this.opacity = p.lerp(this.opacity, 255, 0.1);
+		            } else {
+		                this.targetPos = p.createVector(
+		                    this.finalPosPct.x * p.width,
+		                    p.height - this.finalPosPct.y * p.height * heightRatio - bottomPadding
+		                );
+		                 this.opacity = p.lerp(this.opacity, 200, 0.1);
+		            }
+
+		        }
+		    }
+
+		    setDisplay() {
+		        this.color = defaultColor;
+		        if (colorByDecade) {
+		            if (decade_themes[decade].includes(this.category)) {
+		                this.color = hlColor;
+		            }
+		        } else {
+		            if (this.category == hlCategory) {
+		                this.color = hlColor;
+		            }
+		        }
+		        p.strokeWeight(this.size);
+		    }
+
+		    display() {
+		        p.stroke(this.color[0], this.color[1], this.color[2], this.opacity);
+		        p.point(this.pos.x, this.pos.y, this.size);
+		    }
 		}
 	};
 </script>

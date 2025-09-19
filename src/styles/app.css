@@ -214,6 +214,7 @@ svg {
 	/* Optimize for state changes */
 	will-change: opacity, transform;
 	/* border-top: 1px solid red; */
+	/* border-bottom: 1px solid red; */
 
 }
 .step:last-child{

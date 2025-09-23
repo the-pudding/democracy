@@ -4,6 +4,7 @@
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 	import Bars from "$components/democracy/Bars.democracy.svelte";
 	import Dots from "$components/democracy/Dots.democracy.svelte";
+	import Text from "$components/democracy/Text.democracy.svelte";
 	import data from "$data/speeches.json";
 	import {
 		processText,
@@ -12,12 +13,12 @@
 
 	// Props
 	let { copy } = $props();
+	const heightRatio = 0.65;
 
 	// Component State
 	let value = $state(0);
 	let scrollProgress = $state(0);
 	let lastScrollY = $state(0);
-	let barVariable = $state("total_pct");
 	let containerWidth = $state(0);
 	let containerHeight = $state(0);
 	let transcriptWidth = $state(0);
@@ -25,13 +26,21 @@
 	let stepElements = [];
 	const triggerPoint = 100;
 	let mounted = $state(false);
+	let expanded = $state(false);
+	let barChart = $state(false);
+	const categories = {
+		none: "None highlighted",
+		authoritarian_threats: "Authoritarian threats",
+		electoral_integrity: "Electoral integrity",
+		expanding_democracy: "Expanding democracy",
+		restricting_democracy: "Restricting democracy",
+		money_in_politics: "Money in politics",
+		foreign_threats: "Foreign threats"
+	};
+	let selectedCategory = $state("none");
 
-	// --- REFACTORED DATA HANDLING ---
-	// Initialize data structures as empty state variables.
-	// They will be populated on the client-side inside onMount.
 	let mergedData = $state({});
 	let stepIndices = $state([]);
-	// --- END REFACTOR ---
 
 	function getLineLength() {
 		if (typeof window === "undefined") return 80;
@@ -53,45 +62,122 @@
 	const year = $derived(currentStepData?.year);
 	const month = $derived(currentStepData?.month);
 	const currentRow = $derived(mergedData?.[year]?.[month] ?? currentStepData);
+	const currentAnnotation = $derived(
+		copy.annotations.find((d) => year >= d.start && year <= d.end) || ""
+	);
 
 	const storyText = $derived(
-		processText(currentRow?.text || "", lineLength, currentRow?.title || "")
+		processText(currentRow?.text || "", lineLength, currentRow?.header || "")
 	);
 	const showStoryElements = $derived(currentRow?.story && value >= 0);
-
+	$effect(() => {
+		if (currentRow) {
+			for (let i = 0; i < copy.story.length; i++) {
+				if ((copy.story[i].year * 12 + copy.story[i].month) <= (currentRow.year * 12 + currentRow.month) && copy.story[i].selectedCategory) {
+					selectedCategory = copy.story[i].selectedCategory;
+				}
+			}
+		}
+	});
 	onMount(() => {
-		// --- DATA PROCESSING MOVED HERE ---
-		// This logic now runs safely in the browser, preventing SSR crashes.
+		// --- REVISED DATA PROCESSING LOGIC ---
 		const processedData = {};
 		const copyLookup = new Map(
 			copy?.story?.map((item) => [`${item.year}-${item.month}`, item]) || []
 		);
+
+		// 1. Process direct matches and build the base data from speeches
 		for (const year in data) {
 			processedData[year] = {};
 			for (const month in data[year]) {
 				const key = `${year}-${month}`;
+				const speechData = data[year][month];
+
 				if (copyLookup.has(key)) {
-					processedData[year][month] = { ...copyLookup.get(key), story: true };
+					// Direct match found: merge story into the speech data
+					const storyData = copyLookup.get(key);
+					processedData[year][month] = {
+						...speechData,
+						story: true,
+						storyText: storyData.text
+					};
 				} else {
-					processedData[year][month] = { ...data[year][month], story: false };
+					// No direct match: just use the speech data
+					processedData[year][month] = { ...speechData, story: false };
 				}
 			}
 		}
-		copyLookup.forEach((item, key) => {
-			const [year, month] = key.split("-");
-			if (!processedData[year]?.[month]) {
+
+		// 2. Get a sorted list of all available speech dates to search against
+		const speechDates = [];
+		for (const year in processedData) {
+			for (const month in processedData[year]) {
+				speechDates.push({ year: parseInt(year), month: parseInt(month) });
+			}
+		}
+		// Sorting isn't strictly necessary for the search, but can be useful
+		speechDates.sort((a, b) => a.year - b.year || a.month - b.month);
+
+		// 3. Handle stories that did NOT have a direct match
+		copyLookup.forEach((storyItem, key) => {
+			const [year, month] = key.split("-").map(Number);
+
+			// Check if this story was already merged in step 1. If so, skip it.
+			if (processedData[year]?.[month]?.story) {
+				return;
+			}
+
+			// Fallback for the "don't lose any story" rule:
+			// If there are no speeches at all, create an entry for the story.
+			if (speechDates.length === 0) {
 				if (!processedData[year]) processedData[year] = {};
-				processedData[year][month] = { ...item, story: true };
+				processedData[year][month] = { ...storyItem, story: true };
+				return;
+			}
+
+			// Find the nearest speech date
+			let nearestDate = null;
+			let minDifference = Infinity;
+
+			for (const speechDate of speechDates) {
+				// Calculate difference in months for easy comparison
+				const difference = Math.abs(
+					year * 12 + month - (speechDate.year * 12 + speechDate.month)
+				);
+				if (difference < minDifference) {
+					minDifference = difference;
+					nearestDate = speechDate;
+				}
+			}
+
+			// Attach the story to the nearest found date
+			if (nearestDate) {
+				const targetObject = processedData[nearestDate.year][nearestDate.month];
+				targetObject.story = true;
+				targetObject.storyText = storyItem.text;
+				// You could add more story properties here if needed
+				// e.g., targetObject.attachedStoryTitle = storyItem.title;
 			}
 		});
-		mergedData = processedData; // Update state, which triggers derived values
+		processedData["1870"] = {
+			"1": {
+				year: "1870",
+				month: "1",
+				day: "1",
+				story: true,
+				header: 1,
+				text: "democracy<div class='byline'>by <a href='https://pudding.cool/author/alvin-chang/'>alvin chang</a></div>"
+			}
+		};
+		mergedData = processedData;
 
+		// The rest of the function remains the same...
 		const processedIndices = [];
 		for (const year in processedData) {
 			for (const month in processedData[year]) {
 				processedIndices.push({
 					year: parseInt(year),
-					month: parseInt(month),
+					month: parseInt(month)
 				});
 			}
 		}
@@ -102,11 +188,9 @@
 		stepIndices = processedIndices.map((item, index) => ({
 			...item,
 			stepIndex: index
-		})); // Update state
-		// --- END DATA PROCESSING ---
+		}));
 
-
-		mounted = true; // Set flag to true only when in the browser
+		mounted = true;
 		const handleResize = () => {
 			lineLength = getLineLength();
 		};
@@ -155,8 +239,12 @@
 		scrollProgress = Math.round(Math.max(0, Math.min(100, rawProgress)));
 	}
 
-	function handleToggleClick(event) {
-		barVariable = event.target.value;
+	function handleExpand(expand) {
+		if (expand) {
+			expanded = true;
+		} else {
+			expanded = false;
+		}
 	}
 </script>
 
@@ -165,7 +253,6 @@
 <section id="scrolly">
 	<div
 		class="visualContainer"
-		class:title={currentRow?.title}
 		class:annotate={currentRow?.annotate}
 		class:story={showStoryElements}
 		bind:clientWidth={containerWidth}
@@ -178,19 +265,60 @@
 				{month}
 				{containerWidth}
 				{containerHeight}
-				{barVariable}
 				{currentRow}
 				{transcriptWidth}
 				{transcriptHeight}
+				{heightRatio}
+				{selectedCategory}
+				{barChart}
 			/>
+			{#if currentAnnotation}
+				<div
+					class="currentAnnotation"
+					style="top:{100 - heightRatio * 100}%;"
+					transition:fade
+				>
+					<span class="annotationHeader"
+						>{currentAnnotation.header}</span
+					>
+					{#if !expanded}
+						<div class="smallText">
+							{currentAnnotation.smallText}
+							<!-- <span
+								class="annotationButton expand"
+								on:click={() => handleExpand(true)}>+Expand</span
+							> -->
+						</div>
+					{:else}
+						<div class="bigText">
+							{currentAnnotation.bigText}
+							<span
+								class="annotationButton collapse"
+								on:click={() => handleExpand(false)}>-Collapse</span
+							>
+						</div>
+					{/if}
+					{#if currentRow?.year > 1870}
+						<div
+							class="pulldown"
+							style="top:{100 - heightRatio * 100}%;"
+							transition:fade
+						>
+							<select bind:value={selectedCategory}>
+								{#each Object.entries(categories) as [key, value]}
+									<option value={key}>{value}</option>
+								{/each}
+							</select>
+							<div class="dot"></div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		{/if}
 
-		{#if showStoryElements}
+		<!-- 		{#if showStoryElements}
 			<div class="progressBar" style="width: {scrollProgress}%;"></div>
-		{/if}
-		{#if currentRow?.themes}
-			<div class="debug">{currentRow.themes}</div>
-		{/if}
+		{/if} -->
 		{#if showStoryElements && currentRow?.context}
 			<div class="context">{currentRow.context}</div>
 		{/if}
@@ -210,14 +338,16 @@
 						{/if}
 					</div>
 				{/if}
-
-				{#if storyText.democracyRow}
-					<div class="democracy-row-container"
-						bind:clientWidth={transcriptWidth}
-						bind:clientHeight={transcriptHeight}
-					>
-						{@html storyText.democracyRow}
-					</div>
+				{#if storyText.democracyRow || currentRow?.header == "yes"}
+					{#key storyText.democracyRow}
+						<div
+							class="democracy-row-container"
+							bind:clientWidth={transcriptWidth}
+							bind:clientHeight={transcriptHeight}
+						>
+							{@html storyText.democracyRow}
+						</div>
+					{/key}
 				{/if}
 			{:else}
 				<div class="instanceData" style:opacity={year > 1872 ? 0.5 : 0}>
@@ -237,7 +367,16 @@
 					class="step"
 					class:story={rowData?.story || step.story}
 					bind:this={stepElements[i]}
-				></div>
+				>
+					{#if (i === 0 || step.year !== stepIndices[i - 1]?.year) && step.year > 1870}
+						<span class="year-marker">{rowData?.year}</span>
+					{:else if step.year > 1870}
+						<span class="year-marker">-</span>
+					{/if}
+					{#if rowData?.story && currentRow?.header != "yes" && step.year > 1870}
+						<Text copy={rowData?.storyText} />
+					{/if}
+				</div>
 			{/each}
 		</Scrolly>
 	{/key}
@@ -326,4 +465,3 @@
 		color: var(--democracy-row-color);
 	}
 </style>
-

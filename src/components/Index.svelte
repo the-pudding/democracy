@@ -8,5 +8,5 @@
 
 <svelte:boundary onerror={(e) => console.error(e)}>
 	<Democracy {copy} />
-	<!-- <Footer recirc={true} /> -->
+	<Footer recirc={true} />
 </svelte:boundary>

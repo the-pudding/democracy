@@ -27,13 +27,12 @@
 	const triggerPoint = 100;
 	let mounted = $state(false);
 	let expanded = $state(false);
-	let barChart = $state(false);
+	let barChart = $state(true);
 	const categories = {
 		none: "None highlighted",
 		authoritarian_threats: "Authoritarian threats",
-		electoral_integrity: "Electoral integrity",
-		expanding_democracy: "Expanding democracy",
-		restricting_democracy: "Restricting democracy",
+		// electoral_integrity: "Electoral integrity",
+		expand_restrict: "Expand/restrict democracy",
 		money_in_politics: "Money in politics",
 		foreign_threats: "Foreign threats"
 	};
@@ -73,7 +72,11 @@
 	$effect(() => {
 		if (currentRow) {
 			for (let i = 0; i < copy.story.length; i++) {
-				if ((copy.story[i].year * 12 + copy.story[i].month) <= (currentRow.year * 12 + currentRow.month) && copy.story[i].selectedCategory) {
+				if (
+					copy.story[i].year * 12 + copy.story[i].month <=
+						currentRow.year * 12 + currentRow.month &&
+					copy.story[i].selectedCategory
+				) {
 					selectedCategory = copy.story[i].selectedCategory;
 				}
 			}
@@ -85,6 +88,19 @@
 		const copyLookup = new Map(
 			copy?.story?.map((item) => [`${item.year}-${item.month}`, item]) || []
 		);
+
+		const finalStage = {
+			month: "2",
+			story: true,
+			storyText: "",
+			text: "",
+			themes: ["authoritarian_threats"],
+			year: "2026"
+		};
+		data["2026"] = {
+			1: finalStage,
+			2: finalStage
+		};
 
 		// 1. Process direct matches and build the base data from speeches
 		for (const year in data) {
@@ -107,7 +123,6 @@
 				}
 			}
 		}
-
 		// 2. Get a sorted list of all available speech dates to search against
 		const speechDates = [];
 		for (const year in processedData) {
@@ -117,7 +132,9 @@
 		}
 		// Sorting isn't strictly necessary for the search, but can be useful
 		speechDates.sort((a, b) => a.year - b.year || a.month - b.month);
-
+		// for (let i = 1; i <= 12; i++) {
+		// 	speechDates.push({"year": 2026, "month": i});
+		// }
 		// 3. Handle stories that did NOT have a direct match
 		copyLookup.forEach((storyItem, key) => {
 			const [year, month] = key.split("-").map(Number);
@@ -185,6 +202,7 @@
 			if (a.year !== b.year) return a.year - b.year;
 			return a.month - b.month;
 		});
+
 		stepIndices = processedIndices.map((item, index) => ({
 			...item,
 			stepIndex: index
@@ -246,6 +264,27 @@
 			expanded = false;
 		}
 	}
+
+	onMount(() => {
+		const observer = new MutationObserver(() => {
+			document.querySelectorAll(".promptHeader").forEach((header) => {
+				if (!header.hasAttribute("data-click-bound")) {
+					header.setAttribute("data-click-bound", "true");
+					header.addEventListener("click", function () {
+						const prompt = this.closest("p").nextElementSibling;
+						if (prompt && prompt.classList.contains("prompt")) {
+							prompt.classList.toggle("hidden");
+							this.classList.toggle("open");
+						}
+					});
+				}
+			});
+		});
+
+		observer.observe(document.body, { childList: true, subtree: true });
+
+		return () => observer.disconnect();
+	});
 </script>
 
 <svelte:window on:scroll={handleScroll} />
@@ -258,7 +297,7 @@
 		bind:clientWidth={containerWidth}
 		bind:clientHeight={containerHeight}
 	>
-		<!-- This #if block now prevents the Dots component from running on the server at all -->
+		<!-- <div class="debug">{year}</div> -->
 		{#if mounted && currentRow && containerWidth > 0}
 			<Dots
 				{year}
@@ -272,33 +311,20 @@
 				{selectedCategory}
 				{barChart}
 			/>
+			{#if year == 1870}
+				<div class="scrollDownHint" transition:fade>↓</div>
+			{/if}
 			{#if currentAnnotation}
 				<div
 					class="currentAnnotation"
 					style="top:{100 - heightRatio * 100}%;"
 					transition:fade
 				>
-					<span class="annotationHeader"
-						>{currentAnnotation.header}</span
-					>
-					{#if !expanded}
-						<div class="smallText">
-							{currentAnnotation.smallText}
-							<!-- <span
-								class="annotationButton expand"
-								on:click={() => handleExpand(true)}>+Expand</span
-							> -->
-						</div>
-					{:else}
-						<div class="bigText">
-							{currentAnnotation.bigText}
-							<span
-								class="annotationButton collapse"
-								on:click={() => handleExpand(false)}>-Collapse</span
-							>
-						</div>
-					{/if}
-					{#if currentRow?.year > 1870}
+					<span class="annotationHeader">{currentAnnotation.header}</span>
+					<div class="smallText">
+						{currentAnnotation.smallText}
+					</div>
+					{#if currentRow?.year > 1904}
 						<div
 							class="pulldown"
 							style="top:{100 - heightRatio * 100}%;"
@@ -319,15 +345,15 @@
 		<!-- 		{#if showStoryElements}
 			<div class="progressBar" style="width: {scrollProgress}%;"></div>
 		{/if} -->
-		{#if showStoryElements && currentRow?.context}
+		{#if showStoryElements && currentRow?.context && year < 2026}
 			<div class="context">{currentRow.context}</div>
 		{/if}
 		<div class="transcriptText text-layout-container">
-			{#if currentRow}
+			{#if currentRow && year < 2026}
 				{#if currentRow.annotate}
 					<div class="instanceData bigDecade">{currentRow.decades}</div>
-				{:else if currentRow.month}
-					<div class="instanceData" style:opacity={year > 1872 ? 1 : 0}>
+				{:else if currentRow.month && year < 2026}
+					<div class="instanceData" style:opacity={year > 1872 ? 1 : 0} transition:fade>
 						{currentRow.display_month || currentRow.month} / {currentRow.day} / {currentRow.year}
 						<br />
 						{convertChamber(currentRow.chamber)}
@@ -339,18 +365,19 @@
 					</div>
 				{/if}
 				{#if storyText.democracyRow || currentRow?.header == "yes"}
-					{#key storyText.democracyRow}
+					<!-- {#key storyText.democracyRow} -->
 						<div
 							class="democracy-row-container"
 							bind:clientWidth={transcriptWidth}
 							bind:clientHeight={transcriptHeight}
+							transition:fade
 						>
 							{@html storyText.democracyRow}
 						</div>
-					{/key}
+					<!-- {/key} -->
 				{/if}
-			{:else}
-				<div class="instanceData" style:opacity={year > 1872 ? 0.5 : 0}>
+			{:else if year < 2026}
+				<div class="instanceData" style:opacity={year > 1872 ? 0.5 : 0} transition:fade>
 					{month} / {year}
 				</div>
 			{/if}
@@ -366,6 +393,7 @@
 				<div
 					class="step"
 					class:story={rowData?.story || step.story}
+					class:last={rowData?.year == 2026}
 					bind:this={stepElements[i]}
 				>
 					{#if (i === 0 || step.year !== stepIndices[i - 1]?.year) && step.year > 1870}
@@ -381,6 +409,10 @@
 		</Scrolly>
 	{/key}
 </section>
+<div class="methodology">
+	<h3>Data and methods</h3>
+	<Text copy={copy.methodology} />
+</div>
 
 <style>
 	.visualContainer,
@@ -463,5 +495,33 @@
 	.story .prologue-container,
 	.story .epilogue-container {
 		color: var(--democracy-row-color);
+	}
+	@keyframes bounce {
+		0%,
+		20%,
+		50%,
+		80%,
+		100% {
+			transform: translateX(-50%) translateY(0);
+		}
+		40% {
+			transform: translateX(-50%) translateY(-35px);
+		}
+		60% {
+			transform: translateX(-50%) translateY(-20px);
+		}
+	}
+
+	.scrollDownHint {
+		position: absolute;
+		color: var(--democracy-row-color);
+		top: 50%;
+		font-size: 20px;
+		left: 50%;
+		transform: translateX(-50%);
+		animation-name: bounce;
+		animation-duration: 2.5s;
+		animation-iteration-count: infinite;
+		animation-timing-function: ease-in-out;
 	}
 </style>

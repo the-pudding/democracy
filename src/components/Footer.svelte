@@ -162,6 +162,8 @@
 <style>
   footer {
     margin-top: 100px;
+    color: var(--footer-color);
+    border-top: 1px solid rgba(255,255,255,0.1);
   }
 
   .c {
@@ -255,13 +257,13 @@
   }
 
   p {
-    color: var(--color-fg);
+    color: var(--footer-color);
   }
 
   a {
     font-weight: 700;
-    color: var(--color-fg);
-    text-decoration: 2px underline var(--color-fg);
+    color: var(--footer-color);
+    text-decoration: 2px underline var(--footer-color);
   }
 
   a:hover {

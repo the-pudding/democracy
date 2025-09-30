@@ -20,7 +20,9 @@
 	// vars
 	let dotSize = 2;
 	// const defaultColor = [73, 37, 82];
-	const defaultColor = [93, 57, 102];
+	// const defaultColor = [93, 57, 102];
+	const defaultColors = {"none": [220, 120, 200], "categorized": [93, 57, 102]};
+	let defaultColor = [220, 120, 200];
 	let atlasGrotesk;
 
 	const hlColor = [255, 0, 208];
@@ -42,14 +44,12 @@
 		const categories = [
 			"authoritarian_threats",
 			"electoral_integrity",
-			"expanding_democracy",
-			"restricting_democracy",
+			"expand_restrict",
+			// "expanding_democracy",
+			// "restricting_democracy",
 			"money_in_politics",
 			"foreign_threats"
 		];
-		const categoryColors = {
-			// ... (data unchanged)
-		};
 
 		// NEW: This function sorts dots within each year to place the selected category at the bottom.
 		function resortAndReindexDots() {
@@ -105,7 +105,6 @@
 			dotSizeSet();
 			resizeCanvas();
 			dots = [];
-
 			// Loop through the entire volume_year object to create dots
 			for (const yearKey in volume_year) {
 				const yearData = volume_year[yearKey];
@@ -180,6 +179,11 @@
 			if (selectedCategory !== lastSortedCategory) {
 				resortAndReindexDots();
 				lastSortedCategory = selectedCategory;
+			}
+			if (selectedCategory == "none") {
+				defaultColor = defaultColors.none
+			} else {
+				defaultColor = defaultColors.categorized;
 			}
 
 			p.background(30, 13, 33);

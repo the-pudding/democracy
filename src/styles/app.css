@@ -23,7 +23,8 @@
 	--font-body: var(--serif);
 	--font-form: var(--sans);
 
-	--color-fg: var(--color-gray-900);
+	/* --color-fg: var(--color-gray-900); */
+	--color-fg: #fff;
 	--color-primary: var(--color-black);
 	--color-link: var(--color-black);
 	--color-link-hover: var(--color-black);
@@ -84,7 +85,7 @@
 	--democracy-row-color: #ffd9f9;
 	--highlight-word-color: #ff00d4;
 	--highlight-muted-color: #fc62e3;
-
+	--footer-color: #fff;
 	/* "1" second duration */
 	--1s: 1ms;
 }
@@ -202,12 +203,12 @@ svg {
 	contain: layout style;
 	/* Remove transform to prevent reflow */
 	transform: none;
-	height: 5vh;
+	height: 30px;
 	/* min-height: 20px; */
 	padding: 0px 0;
 	margin-right: 2px;
 	text-align: right;
-	pointer-events: none;
+	/* pointer-events: none; */
 	/* Prevent text selection which can cause jumps */
 	-webkit-user-select: none;
 	user-select: none;
@@ -230,23 +231,36 @@ svg {
 	/* color: var(--democracy-row-color); */
 	color: black;
 	padding: 20px;
-	bottom: 60%;
-	font-size: 17px;
-	line-height: 1.6em;
-	transform: translate(-50%, -50%);
+	top: 90%;
+	font-size: 15px;
+	line-height: 1.5em;
+	transform: translate(-50%, 0%);
 	text-align: left;
-	font-family: var(--serif);
-	box-shadow: 5px 5px 0px 0px var(--twodegree-color);
+	font-family: var(--sans);
+	/* box-shadow: 5px 5px 0px 0px var(--twodegree-color); */
+}
+.step .textContainer a {
+	pointer-events: auto;
 }
 .step .textContainer .hl {
 	position: relative;
 	font-weight: bold;
-	margin-right: 15px;
+	color: black;
+	/* color: var(--highlight-word-color); */
+	/* background: #420037; */
+	padding: 0px 3px 2px 19px;
+	/* border-top: 1px solid var(--twodegree-color); */
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+	border-radius: 2px;
+	font-family: var(--sans);
+	margin-top: 10px;
+	/* font-size: 16px; */
 }
-.step .textContainer .hl::after {
+.step .textContainer .hl::before {
 	position: absolute;
-	left: calc(100% + 2px);
-	top: calc(50% - 5px);
+	left: 0px;
+	top: calc(50% - 7px);
 	content: "";
 	width: 12px;
 	height: 12px;
@@ -254,9 +268,10 @@ svg {
 	border: 1px solid black;
 	background: var(--highlight-word-color);
 }
-.step:last-child {
+/* .step.last {
 	height: 500px;
-}
+	padding-bottom: 100vh;
+} */
 .step.smallText .textContainer {
 	margin: 20px auto;
 }
@@ -271,7 +286,10 @@ svg {
 	color: #000;
 }
 .step.story {
-	height: auto;
+	height: 110vh;
+}
+.step.story:first-child {
+	height: 10px;
 }
 .time {
 	width: calc(100% - 5px);
@@ -311,6 +329,11 @@ svg {
 	color: var(--text-link-color);
 	text-decoration: none;
 	transition: color var(--animation-duration) var(--animation-timing);
+}
+.step .note {
+	font-size: 14px;
+	margin: 20px 0;
+	color:  var(--twodegree-color);
 }
 /* .step.bigText.active .time {
 	font-size: 15px;
@@ -615,3 +638,55 @@ BAR RIGHT SIDE
 	background: var(--highlight-word-color);
 }
 
+.debug {
+	color: white;
+	position: fixed;
+	left: 10;
+	top: 10;
+	width: 100%;
+}
+.methodology {
+	color:  var(--onedegree-color);
+	margin: 150px auto 150px;
+	max-width: 620px;
+	width: 96%;
+	font-size:  14px;
+	font-family: var(--sans);
+	line-height: 22px;
+}
+.methodology a {
+	color:  var(--onedegree-color) !important;
+	border-bottom: 1px solid var(--onedegree-color);
+	text-decoration: none;
+}
+.methodology .prompt {
+	font-family: var(--mono);
+	background: black;
+	padding: 20px;
+	color: white;
+	font-size:  12px;
+}
+.promptHeader {
+	font-weight: bold;
+	cursor: pointer;
+	background: none !important;
+	color: var(--democracy-row-color);
+	padding: 4px 0;
+}
+.promptHeader:hover {
+	color: white;
+}
+.promptHeader::after {
+	content: "▲";
+	margin-left: 4px;
+}
+.promptHeader.open::after {
+  content: "▼";
+}
+.prompt {
+  display: block;
+}
+
+.prompt.hidden {
+  display: none;
+}

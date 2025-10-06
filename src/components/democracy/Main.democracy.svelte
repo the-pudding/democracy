@@ -2,7 +2,7 @@
 	import { onMount } from "svelte";
 	import { fade } from "svelte/transition";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
-	import Bars from "$components/democracy/Bars.democracy.svelte";
+	// import Bars from "$components/democracy/Bars.democracy.svelte";
 	import Dots from "$components/democracy/Dots.democracy.svelte";
 	import Text from "$components/democracy/Text.democracy.svelte";
 	import data from "$data/speeches.json";
@@ -28,13 +28,21 @@
 	let mounted = $state(false);
 	let expanded = $state(false);
 	let barChart = $state(true);
-	const categories = {
-		none: "None highlighted",
-		authoritarian_threats: "Authoritarian threats",
-		// electoral_integrity: "Electoral integrity",
-		expand_restrict: "Expand/restrict democracy",
-		money_in_politics: "Money in politics",
-		foreign_threats: "Foreign threats"
+	// const categories = {
+	// 	none: "None highlighted",
+	// 	authoritarian_threats: "Authoritarian threats",
+	// 	// electoral_integrity: "Electoral integrity",
+	// 	expand_restrict: "Expand/restrict democracy",
+	// 	money_in_politics: "Money in politics",
+	// 	foreign_threats: "Foreign threats"
+	// };
+		const categories = {
+		// none: "None highlighted",
+		// threat_general: "Any threat",
+		threat_policy: "Policy/practices threat",
+		threat_external: "External threat",
+		threat_internal: "Government threat",
+		// threat_demographic_identity: "Demographic or identity"
 	};
 	let selectedCategory = $state("none");
 
@@ -94,7 +102,7 @@
 			story: true,
 			storyText: "",
 			text: "",
-			themes: ["authoritarian_threats"],
+			themes: ["threat_internal"],
 			year: "2026"
 		};
 		data["2026"] = {

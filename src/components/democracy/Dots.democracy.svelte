@@ -13,9 +13,12 @@
 		barChart
 	} = $props();
 
+	const startYear = 1894;
+
 	// Imports
 	import P5 from "p5-svelte";
-	import volume_year from "$data/volume_year.json"; // Adjust path if needed
+	// import volume_year from "$data/volume_year.json"; // Adjust path if needed
+	import theme_combinations from "$data/theme_combinations.json"; // Adjust path if needed
 
 	// vars
 	let dotSize = 2;
@@ -25,7 +28,9 @@
 	let defaultColor = [220, 120, 200];
 	let atlasGrotesk;
 
-	const hlColor = [255, 0, 208];
+	// const hlColor = [255, 0, 208];
+	const hlColor = [255, 192, 66];
+	const threatColor = [255, 74, 237];
 	let decade = Math.floor(year / 10) * 10;
 	const colorByDecade = false;
 	let dotPadding = 1;
@@ -41,56 +46,65 @@
 		let denominator = 5;
 		let lastSortedCategory; // Variable to track the category for sorting
 
-		const categories = [
-			"authoritarian_threats",
-			"electoral_integrity",
-			"expand_restrict",
-			// "expanding_democracy",
-			// "restricting_democracy",
-			"money_in_politics",
-			"foreign_threats"
-		];
+		// const categories = [
+		// 	"authoritarian_threats",
+		// 	"electoral_integrity",
+		// 	"expand_restrict",
+		// 	// "expanding_democracy",
+		// 	// "restricting_democracy",
+		// 	"money_in_politics",
+		// 	"foreign_threats"
+		// ];
+		// const categories = ["threat_general","threat_external","threat_internal","threat_systemic_policy","threat_demographic_identity"]
 
 		// NEW: This function sorts dots within each year to place the selected category at the bottom.
 		function resortAndReindexDots() {
-			if (!dots || dots.length === 0) return;
+		    if (!dots || dots.length === 0) return;
 
-			// 1. Group all dots by their year
-			const dotsByYear = dots.reduce((acc, dot) => {
-				if (!acc[dot.year]) {
-					acc[dot.year] = [];
-				}
-				acc[dot.year].push(dot);
-				return acc;
-			}, {});
+		    // 1. Group all dots by their year
+		    const dotsByYear = dots.reduce((acc, dot) => {
+		        if (!acc[dot.year]) {
+		            acc[dot.year] = [];
+		        }
+		        acc[dot.year].push(dot);
+		        return acc;
+		    }, {});
 
-			// 2. For each year, sort the group and re-assign their 'num' index
-			for (const yearKey in dotsByYear) {
-				const yearGroup = dotsByYear[yearKey];
+		    // 2. For each year, sort the group and re-assign their 'num' index
+		    for (const yearKey in dotsByYear) {
+		        const yearGroup = dotsByYear[yearKey];
 
-				// Sort the array for this year
-				yearGroup.sort((a, b) => {
-					const aIsSelected = a.category === selectedCategory;
-					const bIsSelected = b.category === selectedCategory;
+		        // Sort the array for this year
+		        yearGroup.sort((a, b) => {
+		            const aHasThreat = a.themes.includes("threat_general");
+		            const bHasThreat = b.themes.includes("threat_general");
 
-					// This part ensures selected dots always come first
-					if (aIsSelected && !bIsSelected) return -1; // a comes first
-					if (!aIsSelected && bIsSelected) return 1; // b comes first
+		            // Handle the threat_policy grouping
+		            const aHasSelected = selectedCategory === "threat_policy"
+		                ? (a.themes.includes("threat_systemic_policy") || a.themes.includes("threat_demographic_identity"))
+		                : a.themes.includes(selectedCategory);
 
-					// If both dots are NOT selected, randomize their order
-					if (!aIsSelected && !bIsSelected) {
-						return Math.random() - 0.5;
-					}
+		            const bHasSelected = selectedCategory === "threat_policy"
+		                ? (b.themes.includes("threat_systemic_policy") || b.themes.includes("threat_demographic_identity"))
+		                : b.themes.includes(selectedCategory);
 
-					// Otherwise (both dots ARE selected), keep their relative order stable
-					return 0;
-				});
+		            // First priority: Sort by threat_general
+		            if (aHasThreat && !bHasThreat) return -1;
+		            if (!aHasThreat && bHasThreat) return 1;
 
-				// Re-assign the 'num' property based on the new sorted order
-				yearGroup.forEach((dot, index) => {
-					dot.num = index;
-				});
-			}
+		            // Second priority: Within same threat status, sort by selectedCategory
+		            if (aHasSelected && !bHasSelected) return -1;
+		            if (!aHasSelected && bHasSelected) return 1;
+
+		            // If both have same threat status AND same selected status, randomize
+		            return Math.random() - 0.5;
+		        });
+
+		        // Re-assign the 'num' property based on the new sorted order
+		        yearGroup.forEach((dot, index) => {
+		            dot.num = index;
+		        });
+		    }
 		}
 
 		p.preload = () => {
@@ -106,45 +120,70 @@
 			resizeCanvas();
 			dots = [];
 			// Loop through the entire volume_year object to create dots
-			for (const yearKey in volume_year) {
-				const yearData = volume_year[yearKey];
+			// for (const yearKey in volume_year) {
+			// 	const yearData = volume_year[yearKey];
 
-				if (yearData) {
-					let counter = 0;
-					const totalCol = yearData.total;
+			// 	if (yearData) {
+			// 		let counter = 0;
+			// 		const totalCol = yearData.total;
 
-					for (const category of categories) {
-						const count = yearData[category];
-						if (typeof count === "number") {
-							const numDots = Math.floor(count / denominator);
-							for (let i = 0; i < numDots; i++) {
-								dots.push(
-									new Dot(
-										Number(yearKey),
-										Math.ceil(((i + 1) / (numDots + 1)) * 12),
-										category,
-										counter,
-										totalCol
-									)
-								);
-								counter++;
-							}
-						}
-					}
-					const leftoverDots = Math.floor(totalCol / denominator) - counter;
-					for (let i = 0; i < leftoverDots; i++) {
-						dots.push(
-							new Dot(
-								Number(yearKey),
-								Math.ceil(((i + 1) / (leftoverDots + 1)) * 12),
-								"",
-								counter,
-								totalCol
-							)
-						);
-						counter++;
-					}
-				}
+			// 		for (const category of categories) {
+			// 			const count = yearData[category];
+			// 			if (typeof count === "number") {
+			// 				const numDots = Math.floor(count / denominator);
+			// 				for (let i = 0; i < numDots; i++) {
+			// 					dots.push(
+			// 						new Dot(
+			// 							Number(yearKey),
+			// 							Math.ceil(((i + 1) / (numDots + 1)) * 12),
+			// 							category,
+			// 							counter,
+			// 							totalCol
+			// 						)
+			// 					);
+			// 					counter++;
+			// 				}
+			// 			}
+			// 		}
+			// 		const leftoverDots = Math.floor(totalCol / denominator) - counter;
+			// 		for (let i = 0; i < leftoverDots; i++) {
+			// 			dots.push(
+			// 				new Dot(
+			// 					Number(yearKey),
+			// 					Math.ceil(((i + 1) / (leftoverDots + 1)) * 12),
+			// 					"",
+			// 					counter,
+			// 					totalCol
+			// 				)
+			// 			);
+			// 			counter++;
+			// 		}
+			// 	}
+			// }
+
+			for (const yearKey in theme_combinations) {
+			    const yearCombinations = theme_combinations[yearKey];
+			    if (yearCombinations) {
+			        let counter = 0;
+
+			        // Iterate through each combination [[themes], count]
+			        for (const [themes, count] of yearCombinations) {
+			            const numDots = Math.floor(count / denominator);
+
+			            for (let i = 0; i < numDots; i++) {
+			                dots.push(
+			                    new Dot(
+			                        Number(yearKey),
+			                        Math.ceil(((i + 1) / (numDots + 1)) * 12),
+			                        themes, // Pass the array of themes
+			                        counter,
+			                        count // Or you might want totalCol for the year - see note below
+			                    )
+			                );
+			                counter++;
+			            }
+			        }
+			    }
 			}
 
 			// Perform the initial sort and index after all dots are created
@@ -180,8 +219,8 @@
 				resortAndReindexDots();
 				lastSortedCategory = selectedCategory;
 			}
-			if (selectedCategory == "none") {
-				defaultColor = defaultColors.none
+			if (year < startYear) {
+				defaultColor = defaultColors.none;
 			} else {
 				defaultColor = defaultColors.categorized;
 			}
@@ -221,10 +260,10 @@
 
 		// The Dot class remains unchanged from your original code
 		class Dot {
-			constructor(_year, _month, category, num, total) {
+			constructor(_year, _month, themes, num, total) {
 				this.year = _year;
 				this.month = _month;
-				this.category = category;
+				this.themes = themes;
 				this.pos = p.createVector(
 					p.width * Math.random(),
 					p.height * Math.random()
@@ -350,9 +389,18 @@
 			setDisplay() {
 				// Determine the target color (your logic is already correct)
 				this.targetColor = defaultColor;
-				if (this.category == selectedCategory) {
+				const themesToCheck = selectedCategory === "threat_policy"
+					? ["threat_systemic_policy", "threat_demographic_identity"]
+					: [selectedCategory];
+
+				const hasSelectedTheme = themesToCheck.some(theme => this.themes.includes(theme));
+
+				if (hasSelectedTheme && year >= startYear) {
 					this.targetColor = hlColor;
 					this.size = 4;
+				} else if (this.themes.includes("threat_general") && year >= startYear) {
+					this.targetColor = threatColor;
+					this.size = 3;
 				} else {
 					this.size = 3;
 				}

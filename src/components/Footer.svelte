@@ -267,8 +267,9 @@
   }
 
   a:hover {
-    color: var(--color-link-hover);
-    text-decoration: 2px underline var(--color-link-hover);
+    /* color: var(--color-link-hover); */
+    text-decoration: 2px underline var(--footer-color);
+    /* var(--color-link-hover); */
   }
 
   a:hover + .arrow {

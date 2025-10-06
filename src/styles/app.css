@@ -86,6 +86,7 @@
 	--highlight-word-color: #ff00d4;
 	--highlight-muted-color: #fc62e3;
 	--footer-color: #fff;
+	--highlight-yellow: rgb(255, 192, 66);
 	/* "1" second duration */
 	--1s: 1ms;
 }
@@ -208,7 +209,7 @@ svg {
 	padding: 0px 0;
 	margin-right: 2px;
 	text-align: right;
-	/* pointer-events: none; */
+	pointer-events: none;
 	/* Prevent text selection which can cause jumps */
 	-webkit-user-select: none;
 	user-select: none;
@@ -268,6 +269,34 @@ svg {
 	border: 1px solid black;
 	background: var(--highlight-word-color);
 }
+
+.step .textContainer .threat {
+	position: relative;
+	font-weight: bold;
+	color: black;
+	/* color: var(--highlight-word-color); */
+	/* background: #420037; */
+	padding: 0px 0px 2px 15px;
+	/* border-top: 1px solid var(--twodegree-color); */
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+	border-radius: 2px;
+	/* font-family: var(--sans); */
+	margin-top: 10px;
+	/* font-size: 16px; */
+}
+.step .textContainer .threat::before {
+	position: absolute;
+	left: 0px;
+	top: calc(50% - 5px);
+	content: "";
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 1px solid black;
+	background: rgba(255, 74, 237);
+}
+
 /* .step.last {
 	height: 500px;
 	padding-bottom: 100vh;
@@ -617,25 +646,27 @@ BAR RIGHT SIDE
 .pulldown select {
 	font-family: var(--mono);
 	background: var(--color-bg) !important;
-	border: 1px solid var(--highlight-muted-color);
-	color: var(--highlight-muted-color);
+/* 	border: 1px solid var(--highlight-muted-color);
+	color: var(--highlight-muted-color); */
+		border: 1px solid var(--highlight-yellow);
+	color: var(--highlight-yellow);
 	padding: 7px 6px 7px 20px;
 	/* margin-left: 12px; */
 
 }
 .pulldown select:focus {
-	 outline: 1px solid var(--highlight-muted-color);
+	 outline: 1px solid var(--highlight-yellow);
 }
 .pulldown .dot {
 	position: absolute;
-	color: var(--highlight-word-color);
+	color: var(--highlight-yellow);
 	top: 50%;
 	left: 6px;
 	transform: translateY(-50%);
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	background: var(--highlight-word-color);
+	background: var(--highlight-yellow);
 }
 
 .debug {

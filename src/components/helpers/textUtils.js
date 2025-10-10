@@ -34,7 +34,10 @@ function mapVisualToActual(text, visualPos) {
 }
 
 
-export function processText(text, lineLength, title) {
+export function processText(text, lineLength, title, story) {
+    if (story) {
+        return { prologue: '', democracyRow: text.replace(/democracy/gi, '<span class="hl_word">$&</span>'), epilogue: '' };
+    }
     const flooredLineLength = Math.floor(lineLength);
     if (!text || flooredLineLength <= 0) {
         return { prologue: '', democracyRow: '', epilogue: '' };

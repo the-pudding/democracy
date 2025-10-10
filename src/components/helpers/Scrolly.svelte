@@ -28,17 +28,27 @@
 	let container = undefined;
 	let stepPositions = [];
 	
+	// Calculate actual trigger point in pixels
+	let triggerPointPx = $derived(() => {
+		if (typeof top === 'string' && top.includes('vh')) {
+			const vh = parseFloat(top);
+			return (window.innerHeight * vh) / 100;
+		}
+		return top;
+	});
+
 	function findActiveStep() {
 		if (!nodes.length) return;
-		
-		const triggerLine = window.scrollY + top;
+
+		const trigger = triggerPointPx();
+		const triggerLine = window.scrollY + trigger;
 		let activeIndex = -1;
-		
+
 		// Find the step whose top has most recently crossed the trigger line
 		for (let i = 0; i < nodes.length; i++) {
 			const rect = nodes[i].getBoundingClientRect();
 			const elementTop = window.scrollY + rect.top;
-			
+
 			// If element top is at or past the trigger line, this could be our active step
 			if (elementTop <= triggerLine) {
 				activeIndex = i;
@@ -47,7 +57,7 @@
 				break;
 			}
 		}
-		
+
 		// Update value
 		if (activeIndex >= 0) {
 			value = activeIndex;
@@ -55,7 +65,7 @@
 			value = undefined;
 		}
 	}
-	
+
 	function mostInView() {
 		let maxRatio = 0;
 		let maxIndex = 0;
@@ -68,62 +78,62 @@
 		if (maxRatio > 0) value = maxIndex;
 		else value = undefined;
 	}
-	
+
 	function createObserver(node, index) {
 		const handleIntersect = (e) => {
 			const intersecting = e[0].isIntersecting;
 			const ratio = e[0].intersectionRatio;
 			steps[index] = ratio;
-			
+
 			// Use the new trigger method instead of mostInView
 			findActiveStep();
 		};
-		
-		const marginTop = top ? top * -1 : 0;
+
+		const trigger = triggerPointPx();
+		const marginTop = trigger ? trigger * -1 : 0;
 		const marginBottom = bottom ? bottom * -1 : 0;
 		const rootMargin = `${marginTop}px 0px ${marginBottom}px 0px`;
 		const options = { root, rootMargin, threshold };
-		
+
 		if (intersectionObservers[index]) intersectionObservers[index].disconnect();
 		const io = new IntersectionObserver(handleIntersect, options);
 		io.observe(node);
 		intersectionObservers[index] = io;
 	}
-	
+
 	function update() {
 		if (!nodes.length) return;
 		nodes.forEach(createObserver);
 	}
-	
+
 	// Add scroll listener for more precise triggering
-	// function handleScroll() {
-	// 	findActiveStep();
-	// }
-	
+	function handleScroll() {
+		findActiveStep();
+	}
+
 	$effect(() => {
 		for (let i = 0; i < increments + 1; i++) {
 			threshold.push(i / increments);
 		}
 		nodes = container.querySelectorAll(":scope > *:not(iframe)");
 		update();
-		
+
 		// Add scroll listener
-		// window.addEventListener('scroll', handleScroll);
-		
+		window.addEventListener('scroll', handleScroll, { passive: true });
+
 		// Cleanup function
 		return () => {
-			// window.removeEventListener('scroll', handleScroll);
+			window.removeEventListener('scroll', handleScroll);
 			intersectionObservers.forEach(observer => observer.disconnect());
 		};
 	});
-	
+
 	$effect(() => {
 		top;
 		bottom;
 		update();
 	});
 </script>
-
 <div class="scrollyContainer" bind:this={container}>
 	{@render children?.()}
 </div>

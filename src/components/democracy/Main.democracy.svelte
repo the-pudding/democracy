@@ -15,7 +15,7 @@
 	// Props
 	let { copy } = $props();
 	const heightRatio = 0.65;
-	const chartToggleYear = 2025;
+	const chartToggleYear = 1970;
 
 	// Component State
 	let value = $state(0);
@@ -351,13 +351,13 @@
 									class:active={barChart}
 									on:click={() => (barChart = true)}
 								>
-									Bar chart
+									No. of speeches
 								</button>
 								<button
 									class:active={!barChart}
 									on:click={() => (barChart = false)}
 								>
-									Area chart
+									Pct. of all speeches
 								</button>
 							</div>
 						{/if}
@@ -400,7 +400,7 @@
 								bind:clientHeight={transcriptHeight}
 								transition:fade={{ duration: 200 }}
 							>
-								{#if currentRow?.story}
+								{#if currentRow?.quote}
 									<div class="speakerImage" in:fade>
 										<Headshot
 											name={currentRow.firstname + "_" + currentRow.lastname}

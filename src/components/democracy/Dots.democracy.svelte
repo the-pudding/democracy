@@ -24,6 +24,7 @@
 	// Imports
 	import P5 from "p5-svelte";
 	import theme_combinations from "$data/theme_combinations.json";
+	import all_speeches from "$data/all_dem_speeches.json";
 
 	// vars
 	const defaultColors = {"none": [220, 120, 200], "categorized": [63, 27, 72]};
@@ -35,6 +36,7 @@
 	const colorByDecade = false;
 	let dotPadding = 1;
 	const bottomPadding = 40;
+	const sidePadding = 10;
 
 	let oldContainerWidth = containerWidth;
 	let oldContainerHeight = containerHeight;
@@ -178,7 +180,19 @@
 				interval = 20;
 			}
 			for (let i = 1880; i <= 2020; i += interval) {
-				p.text(i, yearToXAxis(i) * p.width, p.height - 10);
+				p.text(i, yearToXAxis(i) * (p.width - sidePadding*2), p.height - 10);
+			}
+			if (!barChart) {
+				for (let i = 0; i <= 4; i += 0.5) {
+					p.textAlign(p.RIGHT);
+					p.textSize(p.constrain(p.width / 100, 12, 15));
+					const y = (p.height - bottomPadding) - ((p.height - bottomPadding) * (i/4.5));
+					p.noStroke();
+					p.text(i + "%", (p.width) - 2, y );
+					p.stroke("#82657d");
+					p.strokeWeight(0.4);
+					p.line(0,y + 3,p.width,y + 3);
+				}
 			}
 		}
 
@@ -191,7 +205,7 @@
 				this.year = _year;
 				this.month = _month;
 				this.themes = themes;
-				this.pos = p.createVector(p.width * Math.random(), p.height * Math.random());
+				this.pos = p.createVector((p.width - sidePadding*2) * Math.random(), p.height * Math.random());
 				this.targetPos = p.createVector(this.pos.x, this.pos.y);
 				this.vel = p.createVector(0, 0);
 				this.acc = p.createVector(0, 0);
@@ -205,9 +219,10 @@
 				this.color = p.color(defaultColor[0], defaultColor[1], defaultColor[2]);
 				this.targetColor = defaultColor;
 				this.isFuture = true;
-				this.centerX = p.width * Math.random();
+				this.centerX = (p.width - sidePadding*2) * Math.random();
 				this.centerY = p.height * Math.random();
 				this.loaded = false;
+				this.maxAreaHeight = all_speeches[_year].percentage;
 			}
 
 			update() {
@@ -252,7 +267,7 @@
 			move() {
 				this.isFuture = this.year > year || (this.year === year && this.month >= month);
 				if (year < 1880 && this.year < 1890) {
-					const radius = p.min(p.width, p.height);
+					const radius = p.min((p.width - sidePadding*2), p.height);
 					const totalDotsIn1880 = 50;
 					const initialAngle = p.map(this.num, 0, totalDotsIn1880, 0, p.TWO_PI);
 					const rotationAngle = p.frameCount * Math.random() * 10;
@@ -264,14 +279,14 @@
 					this.opacity = p.lerp(this.opacity, 255, 0.1);
 				} else if (this.isFuture) {
 					this.targetPos.set(
-						p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+						(p.width - sidePadding*2) / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
 						p.height / 4
 					);
 					this.opacity = p.lerp(this.opacity, 0, 0.1);
 				} else {
-					const targetX = yearToXAxis(this.year) * p.width;
+					const targetX = yearToXAxis(this.year) * (p.width - sidePadding*2);
 					if (barChart) {
-						const numColumns = p.width > 1300 ? 2 : 1;
+						const numColumns = (p.width - sidePadding*2) > 1300 ? 2 : 1;
 						const rowIndex = Math.floor(this.num / numColumns);
 						const colIndex = this.num % numColumns;
 						const xOffsetFactor = colIndex - (numColumns - 1) / 2;
@@ -293,7 +308,7 @@
 							yFraction = 0.5;
 						}
 
-						const yPosInStack = yFraction * chartHeight;
+						const yPosInStack = yFraction * (chartHeight * this.maxAreaHeight / 4.5);
 						const targetY = p.height - bottomPadding - yPosInStack;
 
 						// Set the position with no horizontal offset

@@ -17,7 +17,7 @@
 		onUpdate
 	} = $props();
 
-	const startYear = 1894;
+	const startYear = 1800;
 	let dotSize = 3;
 	let hlSize = 3;
 
@@ -27,11 +27,13 @@
 	import all_speeches from "$data/all_dem_speeches.json";
 
 	// vars
+	let atlasGrotesk;
 	const defaultColors = {"none": [220, 120, 200], "categorized": [63, 27, 72]};
 	let defaultColor = [220, 120, 200];
-	let atlasGrotesk;
-	const hlColor = [255, 174, 107];
-	const threatColor = [247, 106, 233];
+	// const hlColor = [255, 174, 107];
+	// const threatColor = [247, 106, 233];
+	const hlColor = [255, 13, 243];
+	let threatColor = [63, 27, 72];
 	let decade = Math.floor(year / 10) * 10;
 	const colorByDecade = false;
 	let dotPadding = 1;
@@ -140,7 +142,7 @@
 			// oldContainerWidth = containerWidth;
 			// oldContainerHeight = containerHeight;
 		}
-
+		let displayYear = year;
 		p.draw = () => {
 			if (selectedCategory !== lastSortedCategory) {
 				resortAndReindexDots();
@@ -168,6 +170,12 @@
 				makeAxis();
 			}
 			onUpdate(false);
+			p.stroke("#784f72");
+			p.strokeWeight(1);
+			displayYear = p.lerp(displayYear,Number(year),0.2);
+			p.line(yearToXAxis(displayYear)* (p.width - sidePadding),0,yearToXAxis(displayYear)* (p.width - sidePadding),containerHeight - bottomPadding);
+			// p.fill("#ffffff");
+			// p.text(displayYear,p.width/2,p.height/2);
 		};
 
 		function makeAxis(y) {
@@ -324,7 +332,10 @@
 					? ["threat_systemic_policy", "threat_demographic_identity"]
 					: [selectedCategory];
 				const hasSelectedTheme = themesToCheck.some(theme => this.themes.includes(theme));
-				if (hasSelectedTheme && year >= startYear) {
+				if (selectedCategory == "none" && year >= startYear && this.themes.length > 0) {
+					this.targetColor = hlColor;
+					this.size = hlSize
+				} else if (hasSelectedTheme && year >= startYear) {
 					this.targetColor = hlColor;
 					this.size = hlSize
 				} else if (this.themes.includes("threat_general") && year >= startYear) {

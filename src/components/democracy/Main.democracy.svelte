@@ -31,6 +31,7 @@
 	let expanded = $state(false);
 	let barChart = $state(true);
 	const categories = {
+		none: "Any threat",
 		threat_policy: "Policy/practices threat",
 		threat_external: "External threat",
 		threat_internal: "Government threat"
@@ -324,14 +325,14 @@
 					style="top:{100 - heightRatio * 100}%;"
 					transition:fade
 				>
-					<span class="annotationHeader">{currentAnnotation.header}</span>
+					<!-- <span class="annotationHeader">{currentAnnotation.header}</span>
 					<div class="smallText">
 						{@html currentAnnotation.smallText}
-					</div>
-					{#if currentRow?.year >= 1894}
-					<div class="threatLabel">Any democracy threat</div>
+					</div> -->
+					{#if currentRow?.year >= 1800}
+					<div class="threatLabel">Mentions of "democracy"</div>
 					{/if}
-					{#if currentRow?.year >= 1900 && selectedCategory != "None"}
+					{#if currentRow?.year >= 1880 && selectedCategory != "None"}
 
 						<div
 							class="pulldown"
@@ -436,11 +437,11 @@
 					class:last={rowData?.year == 2026}
 					bind:this={stepElements[i]}
 				>
-					{#if (i === 0 || step.year !== stepIndices[i - 1]?.year) && step.year > 1870 && step.year < 2026}
+				<!-- 	{#if (i === 0 || step.year !== stepIndices[i - 1]?.year) && step.year > 1870 && step.year < 2026}
 						<span class="year-marker">{rowData?.year}</span>
 					{:else if step.year > 1870 && step.year < 2026}
 						<span class="year-marker tick"></span>
-					{/if}
+					{/if} -->
 					{#if rowData?.story && rowData?.header != "yes" && step.year > 1870 && rowData?.storyText != ""}
 						<Text copy={rowData?.storyText} />
 					{/if}

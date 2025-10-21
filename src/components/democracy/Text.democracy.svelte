@@ -97,8 +97,8 @@
 		.join(''); // Join all elements into a single string without any separator
 	}
 </script>
-<div class="textContainer">
+
 	{@html convertToHTML(copy)}
-</div>
+
 <style>
 </style>

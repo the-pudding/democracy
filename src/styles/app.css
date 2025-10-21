@@ -9,7 +9,7 @@
 	--sans:
 		"Atlas Grotesk", -apple-system, BlinkMacSystemFont, Helvetica, Arial,
 		sans-serif;
-	--serif: "Tiempos Text", Iowan Old Style, Times New Roman, Times, serif;
+	--serif: Iowan Old Style, "Tiempos Text", Times New Roman, Times, serif;
 	--mono: "JetBrains Mono", Menlo, Consolas, Monaco, monospace;
 
 	/* z-index */
@@ -71,6 +71,8 @@
 	--hover-color: #ff78eb;
 
 	--color-bg: rgb(11, 0, 13);
+	/* --bigtext-bg: rgb(40,30,40); */
+	--bigtext-bg: rgb(20, 10, 23);
 	/* --color-bg-story: #1c002e; */
 	--color-bg-story: rgb(11, 0, 13);
 	--color-bar: #492552;
@@ -215,7 +217,7 @@ svg {
 	padding: 0px 0;
 	margin-right: 2px;
 	text-align: left;
-	/* pointer-events: none; */
+	pointer-events: none;
 	/* Prevent text selection which can cause jumps */
 	-webkit-user-select: none;
 	user-select: none;
@@ -224,6 +226,9 @@ svg {
 	/* border-top: 1px solid red; */
 	/* border-bottom: 1px solid red; */
 
+}
+.step button {
+	pointer-events: auto !important;
 }
 .step .year-marker {
 	font-size: 11px;
@@ -280,17 +285,17 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 }
 .step .textContainer {
 	position: absolute;
-	width: 500px;
+	width: 620px;
 	max-width: 95%;
 	left: 50%;
 	/* background: rgb(41, 20, 33); */
 	/* background: var(--democracy-row-color); */
-	background:  #473246;
+	background:  #362335;
 	color: #ede4ed;
 	/* color: rgba(255,255,255,0.2); */
 	padding: 5px 14px 5px 14px;
 	top: 50%;
-	font-size: 16px;
+	font-size: 16.5px;
 	line-height: 1.5em;
 	/* letter-spacing: -0.02em; */
 	transform: translate(-50%, -50%);
@@ -311,13 +316,17 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	left: 0%;
 	border-top: 0.5px solid var(--highlight-yellow-bg);
 } */
-
+.step .textContainer blockquote {
+	padding-left: 20px;
+	border-left:  2px solid #ede4ed;
+	margin: 30px 0;
+}
 @media (max-width: 1100px) {
 	.step .textContainer {
-		width: 450px;
+		width: 500px;
 	max-width: 95%;
 	left: 50%;
-	transform: translate(-50%, -100%);
+	/* transform: translate(-50%, -100%); */
 	}
 
 	.step .textContainer::before {
@@ -355,6 +364,11 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	/* border: 1px solid black; */
 	background: var(--highlight-yellow);
 }
+.step .textContainer span.bright {
+	padding: 0px;
+	/* color: var(--highlight-yellow); */
+	color: white;
+}
 .step .textContainer span {
 	position: relative;
 	font-weight: bold;
@@ -386,7 +400,7 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	height: 12px;
 	border-radius: 50%;
 	/* border: 0.5px solid #b586ae; */
-	background: rgba(160, 60, 129);
+	background: rgba(130, 30, 100);
 }
 /* .step.last {
 	height: 500px;
@@ -405,6 +419,7 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 }
 .step.story {
 	height: 100vh;
+	padding: 10vh 0;
 }
 .step.story:first-child {
 	height: 10px;
@@ -424,17 +439,46 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	/* opacity: 0; */
 	user-select: none;
 }
-/* .step.bigText {
+.step.bigText {
 	background: var(--bigtext-bg);
 	padding: 90px 0;
 	min-height: 100vh;
 	position: relative;
 	margin: 200px 0;
 }
+.step.bigText .textContainer {
+	width: 100%;
+	max-width: 600px;
+	background: none;
+	/* /var(--bigtext-bg); */
+}
 .step.bigText strong {
 	color: white;
 	font-weight: 600;
-} */
+}
+/* Top gradient - transparent to white */
+.step.bigText::before {
+	content: "";
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	width: 100%;
+	height: 400px;
+	z-index: -1;
+	background: linear-gradient(to bottom, transparent 0%, var(--bigtext-bg) 100%);
+}
+
+/* Bottom gradient - white to transparent */
+.step.bigText::after {
+	content: "";
+	position: absolute;
+	top: 100%;
+	left: 0;
+	width: 100% !important;
+	height: 200px;
+	z-index: -1;
+	background: linear-gradient(to top, transparent 0%, var(--bigtext-bg) 100%);
+}
 .step a {
 	color: #f2b1f2;
 	/* color: var(--text-link-color); */
@@ -637,7 +681,7 @@ MAIN TEXT AREA
 	font-size: inherit;
 	margin-top: 40px;
 	color: var(--byline-color);
-	font-size: 11px;
+	font-size: 13px;
 }
 .byline a {
 	color: var(--byline-color);
@@ -816,7 +860,7 @@ BAR RIGHT SIDE
 	max-width: 620px;
 	width: 96%;
 	font-size:  14px;
-	font-family: var(--sans);
+	font-family: var(--serif);
 	line-height: 22px;
 }
 .methodology a {
@@ -837,6 +881,7 @@ BAR RIGHT SIDE
 	background: none !important;
 	color: var(--democracy-row-color);
 	padding: 4px 0;
+	font-family: var(--serif);
 }
 .promptHeader:hover {
 	color: white;

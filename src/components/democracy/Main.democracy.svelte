@@ -1,5 +1,5 @@
 <script>
-	import { onMount, onDestroy } from "svelte";
+	import { onMount, onDestroy, tick } from "svelte";
 	import { fade } from "svelte/transition";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 	import Dots from "$components/democracy/Dots.democracy.svelte";
@@ -10,8 +10,10 @@
 		processText,
 		convertChamber
 	} from "$components/helpers/textUtils.js";
+
 	let loading = $state(true);
 	let prefersReducedMotion = $state(false);
+
 	// Props
 	let { copy } = $props();
 	const heightRatio = 0.65;
@@ -28,6 +30,7 @@
 	let stepElements = [];
 	const triggerPoint = 50;
 	let mounted = $state(false);
+	let scrollyReady = $state(false);
 	let expanded = $state(false);
 	let barChart = $state(true);
 	const categories = {
@@ -38,8 +41,14 @@
 	};
 	let selectedCategory = $state("none");
 
+	// State for selected speech from dot click
+	let selectedSpeech = $state(null);
+
 	let mergedData = $state({});
 	let stepIndices = $state([]);
+
+	// ADDED: State for navigation map
+	let validStepNavMap = $state({});
 
 	function getLineLength() {
 		if (typeof window === "undefined") return 80;
@@ -55,61 +64,16 @@
 
 	let lineLength = $state(getLineLength());
 
-	// These derived values use the unique step index for lookups
-	const currentStepIndex = $derived(Math.floor(value ?? 0));
-	const currentRow = $derived(mergedData?.[currentStepIndex]);
-	const year = $derived(currentRow?.year);
-	const month = $derived(currentRow?.month);
-	const currentAnnotation = $derived(
-		copy.annotations.find((d) => year >= d.start && year <= d.end) || ""
-	);
+	// Handle dot clicks to find and display a speech
+	function handleDotClick(dotData) {
+		const myObject = data[dotData.year];
+		const randomValue = myObject[Object.keys(myObject)[Math.floor(Math.random() * Object.keys(myObject).length)]];
+		selectedSpeech = randomValue;
+	}
 
-	const storyText = $derived(
-		processText(
-			currentRow?.text || "",
-			lineLength,
-			currentRow?.header || "",
-			currentRow?.story
-		)
-	);
-	const showStoryElements = $derived(currentRow?.story && value >= 0);
-
-	// This effect now efficiently reads the pre-calculated category for the current step
-	$effect(() => {
-		if (currentRow?.stickyCategory) {
-			selectedCategory = currentRow.stickyCategory;
-		}
-	});
-
-	$effect(() => {
-		if (year > chartToggleYear) {
-			barChart = false;
-		} else {
-			barChart = true;
-		}
-	});
-
-	onMount(() => {
-		// 0. check motion
-		const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-		function updatePreference(e) {
-			prefersReducedMotion = e.matches;
-		}
-
-		// Add listener
-		mediaQuery.addListener(updatePreference);
-
-		// Set initial value
-		prefersReducedMotion = mediaQuery.matches;
-
-		// // Cleanup function
-		return () => {
-			mediaQuery.removeListener(updatePreference);
-		};
-	});
-
-	onMount(() => {
+	// Process data immediately (not in onMount)
+	function processAllData() {
+		// ... (existing processAllData function, no changes needed here) ...
 		const allEntries = [];
 
 		// 1. Process all speeches from the main data file
@@ -134,9 +98,12 @@
 					year: parseInt(storyItem.year),
 					month: parseInt(storyItem.month),
 					isStory: true,
-					story: true
+					story: true,
+					bigText: false
 				};
-
+				if (storyItem.bigText == "yes") {
+					entry.bigText = true;
+				}
 				if (storyItem.quote) {
 					entry.text = storyItem.quote;
 					entry.storyText = storyItem.text;
@@ -173,16 +140,6 @@
 			stickyCategory: "none"
 		});
 
-		// 6. Append the final card
-		allEntries.push({
-			month: "2",
-			story: true,
-			storyText: "",
-			text: "",
-			year: "2026",
-			stickyCategory: lastSeenCategory
-		});
-
 		// 7. Build the final index-keyed data structures
 		const finalMergedData = {};
 		const finalStepIndices = [];
@@ -196,41 +153,174 @@
 			});
 		});
 
-		mergedData = finalMergedData;
-		stepIndices = finalStepIndices;
+		return { finalMergedData, finalStepIndices };
+	}
 
-		// 8. Set up event listeners and observers
-		mounted = true;
-		const handleResize = () => {
-			lineLength = getLineLength();
-		};
-		window.addEventListener("resize", handleResize);
-		lastScrollY = window.scrollY;
+	// Process data immediately when component initializes
+	const processedData = processAllData();
+	mergedData = processedData.finalMergedData;
+	stepIndices = processedData.finalStepIndices;
 
-		const observer = new MutationObserver(() => {
-			document.querySelectorAll(".promptHeader").forEach((header) => {
-				if (!header.hasAttribute("data-click-bound")) {
-					header.setAttribute("data-click-bound", "true");
-					header.addEventListener("click", function () {
-						const prompt = this.closest("p").nextElementSibling;
-						if (prompt && prompt.classList.contains("prompt")) {
-							prompt.classList.toggle("hidden");
-							this.classList.toggle("open");
-						}
-					});
+	// ADDED: Function to calculate the navigation map for valid text steps
+	function calculateValidStepNav() {
+		const navMap = {};
+		let lastValidIndex = null;
+
+		for (let i = 0; i < stepIndices.length; i++) {
+			const step = stepIndices[i];
+			const rowData = mergedData[step.stepIndex];
+
+			// This is the same condition used in the markup to render the <Text> component
+			const isTextStep =
+				rowData?.story &&
+				rowData?.header != "yes" &&
+				step.year > 1870 &&
+				rowData?.storyText != "";
+
+			if (isTextStep) {
+				// This is a valid step. Create its entry.
+				navMap[i] = { prev: lastValidIndex, next: null };
+
+				// If there was a previous valid step, update its 'next' pointer
+				if (lastValidIndex !== null) {
+					navMap[lastValidIndex].next = i;
 				}
-			});
-		});
-		observer.observe(document.body, { childList: true, subtree: true });
 
-		// Return a cleanup function
+				// This is now the new 'last valid step'
+				lastValidIndex = i;
+			}
+		}
+		return navMap;
+	}
+
+	// ADDED: Call the function to populate the map
+	validStepNavMap = calculateValidStepNav();
+
+	// ADDED: Function to instantly scroll to a specific step
+	function scrollToStep(index) {
+		if (index !== null && stepElements[index]) {
+			// scrollIntoView with 'auto' behavior is instant
+			stepElements[index].scrollIntoView({ behavior: 'smooth', block: 'end' });
+		}
+	}
+
+	// These derived values use the unique step index for lookups
+	const currentStepIndex = $derived(Math.floor(value ?? 0));
+	// ... (rest of derived values) ...
+	const currentRow = $derived(mergedData?.[currentStepIndex]);
+	const displayRow = $derived(selectedSpeech || currentRow);
+	const year = $derived(currentRow?.year);
+	const month = $derived(currentRow?.month);
+	const currentAnnotation = $derived(
+		copy.annotations.find((d) => year >= d.start && year <= d.end) || ""
+	);
+
+	const storyText = $derived(
+		processText(
+			displayRow?.text || "",
+			lineLength,
+			displayRow?.header || "",
+			displayRow?.story
+		)
+	);
+	const showStoryElements = $derived(currentRow?.story && value >= 0 && !selectedSpeech);
+
+	// ... (rest of $effect blocks and onMount functions) ...
+	// Clear selected speech when scrolling
+	$effect(() => {
+		// Clear selected speech when the value (scroll position) changes
+		if (value !== undefined) {
+			selectedSpeech = null;
+		}
+	});
+
+	// This effect now efficiently reads the pre-calculated category for the current step
+	$effect(() => {
+		if (currentRow?.stickyCategory) {
+			selectedCategory = currentRow.stickyCategory;
+		}
+	});
+
+	$effect(() => {
+		if (year > chartToggleYear) {
+			barChart = false;
+		} else {
+			barChart = true;
+		}
+	});
+
+	// Handle motion preferences
+	onMount(() => {
+		const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+		function updatePreference(e) {
+			prefersReducedMotion = e.matches;
+		}
+
+		mediaQuery.addListener(updatePreference);
+		prefersReducedMotion = mediaQuery.matches;
+
 		return () => {
-			window.removeEventListener("resize", handleResize);
-			observer.disconnect();
+			mediaQuery.removeListener(updatePreference);
 		};
 	});
 
+	// Main mount function - now only handles browser-specific operations
+	onMount(() => {
+		// Store initial scroll position before doing anything
+		const initialScrollY = window.scrollY;
+
+		// Set mounted flag
+		mounted = true;
+
+		// Use double requestAnimationFrame to ensure browser has finished scroll restoration
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				// Now initialize Scrolly
+				scrollyReady = true;
+
+				// Restore the scroll position if needed
+				if (initialScrollY > 0) {
+					window.scrollTo(0, initialScrollY);
+				}
+
+				// Store last scroll position
+				lastScrollY = window.scrollY;
+
+				// Set up resize handler
+				const handleResize = () => {
+					lineLength = getLineLength();
+				};
+				window.addEventListener("resize", handleResize);
+
+				// Set up mutation observer for prompt headers
+				const observer = new MutationObserver(() => {
+					document.querySelectorAll(".promptHeader").forEach((header) => {
+						if (!header.hasAttribute("data-click-bound")) {
+							header.setAttribute("data-click-bound", "true");
+							header.addEventListener("click", function () {
+								const prompt = this.closest("p").nextElementSibling;
+								if (prompt && prompt.classList.contains("prompt")) {
+									prompt.classList.toggle("hidden");
+									this.classList.toggle("open");
+								}
+							});
+						}
+					});
+				});
+				observer.observe(document.body, { childList: true, subtree: true });
+
+				// Return cleanup function
+				return () => {
+					window.removeEventListener("resize", handleResize);
+					observer.disconnect();
+				};
+			});
+		});
+	});
+
 	function handleScroll() {
+		// ... (existing handleScroll function, no changes needed) ...
 		if (!stepElements.length || currentStepIndex === undefined) return;
 		const currentScrollY = window.scrollY;
 		const scrollDirection = currentScrollY > lastScrollY ? "down" : "up";
@@ -305,6 +395,7 @@
 				{prefersReducedMotion}
 				{loading}
 				onUpdate={(newLoading) => (loading = newLoading)}
+				onDotClick={handleDotClick}
 			/>
 			{#if year < 1880}
 				<div class="headline_container" transition:fade>
@@ -325,10 +416,6 @@
 					style="top:{100 - heightRatio * 100}%;"
 					transition:fade
 				>
-					<!-- <span class="annotationHeader">{currentAnnotation.header}</span>
-					<div class="smallText">
-						{@html currentAnnotation.smallText}
-					</div> -->
 					{#if currentRow?.year >= 1800}
 					<div class="threatLabel">Mentions of "democracy"</div>
 					{/if}
@@ -370,9 +457,37 @@
 		{#if showStoryElements && currentRow?.context && year < 2026}
 			<div class="context">{currentRow.context}</div>
 		{/if}
-		{#if year < 2026 && year >= 1870}
+		{#if year >= 1870}
 			<div class="transcriptText text-layout-container" transition:fade>
-				{#if currentRow && year < 2026}
+				{#if selectedSpeech}
+					<div
+						class="instanceData"
+						style:opacity={1}
+						transition:fade
+					>
+						{selectedSpeech.month} / {selectedSpeech.day} / {selectedSpeech.year}
+						<br />
+						{convertChamber(selectedSpeech.chamber)}
+						{selectedSpeech.firstname}
+						{selectedSpeech.lastname}
+						{#if selectedSpeech.party?.[0]}
+							({selectedSpeech.party[0]}-{selectedSpeech.state})
+						{:else if selectedSpeech.party}
+							({selectedSpeech.party}-{selectedSpeech.state})
+						{/if}
+					</div>
+
+					{#if storyText.democracyRow && selectedSpeech.firstname}
+						<div
+							class="democracy-row-container"
+							bind:clientWidth={transcriptWidth}
+							bind:clientHeight={transcriptHeight}
+							transition:fade={{ duration: 200 }}
+						>
+							{@html storyText.democracyRow}
+						</div>
+					{/if}
+				{:else if currentRow}
 					{#if currentRow.annotate}
 						<div class="instanceData bigDecade">{currentRow.decades}</div>
 					{:else if currentRow.month && year < 2026}
@@ -393,7 +508,7 @@
 						</div>
 					{/if}
 
-					{#if storyText.democracyRow || currentRow?.header == "yes"}
+					{#if (storyText.democracyRow || currentRow?.header == "yes") && currentRow?.firstname}
 						{#key currentRow?.header}
 							<div
 								class="democracy-row-container"
@@ -401,7 +516,7 @@
 								bind:clientHeight={transcriptHeight}
 								transition:fade={{ duration: 200 }}
 							>
-								{#if currentRow?.quote}
+								{#if currentRow?.quote && currentRow?.headshot != "no"}
 									<div class="speakerImage" in:fade>
 										<Headshot
 											name={currentRow.firstname + "_" + currentRow.lastname}
@@ -425,7 +540,7 @@
 		{/if}
 	</div>
 
-	{#key stepIndices.length}
+	{#if scrollyReady && stepIndices.length > 0}
 		<Scrolly bind:value top={containerHeight / 1.5}>
 			{#each stepIndices as step, i}
 				{@const rowData = mergedData[step.stepIndex]}
@@ -435,20 +550,61 @@
 					class:active={isActive}
 					class:story={rowData?.story || step.story}
 					class:last={rowData?.year == 2026}
+					class:bigText={rowData?.bigText}
 					bind:this={stepElements[i]}
 				>
-				<!-- 	{#if (i === 0 || step.year !== stepIndices[i - 1]?.year) && step.year > 1870 && step.year < 2026}
-						<span class="year-marker">{rowData?.year}</span>
-					{:else if step.year > 1870 && step.year < 2026}
-						<span class="year-marker tick"></span>
-					{/if} -->
+					{#if rowData?.story && rowData?.header != "yes" && step.year > 1870 && rowData?.storyText != ""}
+						{@const nav = validStepNavMap[i]}
+						<div class="textContainer">
+							<Text copy={rowData?.storyText} />
+
+
+							{#if nav}
+								<div class="step-nav">
+
+									{#if nav.prev !== null}
+										<button
+											class="step-nav-btn prev"
+											on:click={() => scrollToStep(nav.prev)}
+										>
+											&larr;
+										</button>
+									{/if}
+									{#if nav.next !== null}
+										<button
+											class="step-nav-btn next"
+											on:click={() => scrollToStep(nav.next)}
+										>
+											{#if nav.prev !== null}
+											&rarr;
+											{:else}
+											Skip to next &rarr;
+											{/if}
+										</button>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/each}
+		</Scrolly>
+	{:else if stepIndices.length > 0}
+		<div class="steps-placeholder">
+			{#each stepIndices as step, i}
+				{@const rowData = mergedData[step.stepIndex]}
+				<div
+					class="step placeholder"
+					class:story={rowData?.story || step.story}
+					class:last={rowData?.year == 2026}
+				>
 					{#if rowData?.story && rowData?.header != "yes" && step.year > 1870 && rowData?.storyText != ""}
 						<Text copy={rowData?.storyText} />
 					{/if}
 				</div>
 			{/each}
-		</Scrolly>
-	{/key}
+		</div>
+	{/if}
 </section>
 <div class="methodology">
 	<h3>Data and methods</h3>
@@ -456,6 +612,41 @@
 </div>
 
 <style>
+	/* ADDED: Styles for step navigation */
+	.step {
+		/* This is required for absolute positioning of the nav buttons */
+		position: relative;
+	}
+	.step-nav {
+		font-family: var(--mono) !important;
+		position: relative;
+		/* Position at the bottom of the step viewport */
+		z-index: 10;
+		text-align: right;
+		margin: 30px 0 10px;
+		font-size: 14px;
+		color: var(--onedegree-color);
+	}
+	button.step-nav-btn {
+		background: none;
+		border: 1px solid var(--onedegree-color);
+		/* color: white; */
+		padding: 10px 15px;
+		cursor: pointer;
+		border-radius: 4px;
+		color: var(--onedegree-color);;
+		font-family: var(--mono);
+	}
+	.step-nav-btn:hover {
+		border: 1px solid rgba(255, 255, 255, 1);
+		color: white;
+	}
+/* 	.step-nav-btn.next {
+		position: absolute;
+		right: 0px;
+	} */
+	/* END ADDED: Styles */
+
 	.visualContainer,
 	.text-layout-container,
 	.prologue-container,
@@ -477,6 +668,7 @@
 		font-family: var(--mono);
 	}
 	.toggle button {
+		font-family: var(--mono);
 		background: var(--twodegree-color);
 		color: rgba(255, 255, 255, 0.4);
 		cursor: pointer;
@@ -583,5 +775,24 @@
 		to {
 			opacity: 1;
 		}
+	}
+	.steps-placeholder {
+		position: relative;
+	}
+
+	.step.placeholder {
+		/* Match your regular step styles but without Scrolly-specific positioning */
+		min-height: 100vh;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* Styles for the rest of the component */
+	.visualContainer,
+	.text-layout-container,
+	.prologue-container,
+	.democracy-row-container,
+	.epilogue-container {
+		box-sizing: border-box;
 	}
 </style>

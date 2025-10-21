@@ -14,7 +14,8 @@
 		barChart,
 		prefersReducedMotion,
 		loading,
-		onUpdate
+		onUpdate,
+		onDotClick = null  // Add this new prop for handling dot clicks
 	} = $props();
 
 	const startYear = 1800;
@@ -53,6 +54,32 @@
 		let denominator = 5;
 		let lastSortedCategory;
 		let dotsPerYear = {};
+
+		// Spatial grid variables for efficient click detection
+		let selectedDot = null;
+		let spatialGrid = {};
+		let gridCellSize = 20; // Adjust based on your dot density
+
+		// Helper function to get grid key
+		function getGridKey(x, y) {
+			const gridX = Math.floor(x / gridCellSize);
+			const gridY = Math.floor(y / gridCellSize);
+			return `${gridX},${gridY}`;
+		}
+
+		// Update spatial grid after dots move
+		function updateSpatialGrid() {
+			spatialGrid = {};
+			for (let dot of dots) {
+				if (dot.opacity > 10) {
+					const key = getGridKey(dot.pos.x, dot.pos.y);
+					if (!spatialGrid[key]) {
+						spatialGrid[key] = [];
+					}
+					spatialGrid[key].push(dot);
+				}
+			}
+		}
 
 		function resortAndReindexDots() {
 			if (!dots || dots.length === 0) return;
@@ -122,6 +149,67 @@
 			}
 			resortAndReindexDots();
 			lastSortedCategory = selectedCategory;
+
+			// Instantly position dots at target on load (unless year < 1880)
+			if (year >= 1880) {
+				for (let dot of dots) {
+					dot.setDisplay();
+					dot.move();
+					// Instantly set position to target
+					dot.pos.set(dot.targetPos);
+					dot.vel.mult(0);
+					dot.acc.mult(0);
+					// Don't set arrived = true so dots can still update
+					// Set opacity instantly based on whether dot is in future or not
+					dot.opacity = dot.isFuture ? 0 : (barChart ? 255 : 200);
+				}
+			}
+		};
+
+		// Efficient click detection using spatial grid
+		p.mousePressed = () => {
+			if (p.mouseX < 0 || p.mouseX > p.width || p.mouseY < 0 || p.mouseY > p.height || year < 2026) {
+				return;
+			}
+
+			selectedDot = null;
+
+			// Check only nearby grid cells
+			const gridX = Math.floor(p.mouseX / gridCellSize);
+			const gridY = Math.floor(p.mouseY / gridCellSize);
+
+			// Check the clicked cell and adjacent cells
+			for (let dx = -1; dx <= 1; dx++) {
+				for (let dy = -1; dy <= 1; dy++) {
+					const key = `${gridX + dx},${gridY + dy}`;
+					const cellDots = spatialGrid[key];
+
+					if (cellDots) {
+						for (let dot of cellDots) {
+							const distance = p.dist(p.mouseX, p.mouseY, dot.pos.x, dot.pos.y);
+							if (distance < dot.size + 2) {
+								selectedDot = dot;
+
+								// Log to console
+								// console.log('Clicked dot themes:', dot.themes);
+								// console.log('Year:', dot.year, 'Month:', dot.month);
+								// console.log('Total count:', dot.total);
+
+								// Call external handler if provided
+								if (onDotClick) {
+									onDotClick({
+										themes: dot.themes,
+										year: dot.year,
+										month: dot.month,
+										total: dot.total
+									});
+								}
+								return; // Exit early when found
+							}
+						}
+					}
+				}
+			}
 		};
 
 		p.windowResized = () => {
@@ -142,8 +230,19 @@
 			// oldContainerWidth = containerWidth;
 			// oldContainerHeight = containerHeight;
 		}
+
 		let displayYear = year;
+		let lastYear = year;
+		let lastMonth = month;
+
 		p.draw = () => {
+			// Clear selection if year or month changed
+			if (year !== lastYear || month !== lastMonth) {
+				selectedDot = null;
+				lastYear = year;
+				lastMonth = month;
+			}
+
 			if (selectedCategory !== lastSortedCategory) {
 				resortAndReindexDots();
 				lastSortedCategory = selectedCategory;
@@ -157,6 +256,20 @@
 				defaultColor = defaultColors.categorized;
 			}
 			p.background(11, 0, 13);
+
+			// Draw year highlight rectangle if a dot is selected
+			if (selectedDot) {
+				p.noStroke();
+				p.fill(255, 255, 255, 20); // White with low opacity
+				const yearX = yearToXAxis(selectedDot.year) * (p.width - sidePadding * 2);
+				// Calculate width to next year (or use a fixed width for the last year)
+				const nextYearX = selectedDot.year < 2020
+					? yearToXAxis(selectedDot.year + 1) * (p.width - sidePadding * 2)
+					: yearX + ((p.width - sidePadding * 2) / 155); // Approximate width for last year
+				const rectWidth = nextYearX - yearX;
+				p.rect(yearX - rectWidth/2, 0, rectWidth, p.height - bottomPadding);
+			}
+
 			decade = String(Math.floor(year / 10) * 10);
 			for (let dot of dots) {
 				dot.update();
@@ -166,6 +279,12 @@
 				}
 				dot.display();
 			}
+
+			// Update spatial grid occasionally (not every frame for performance)
+			if (p.frameCount % 10 === 0 || Object.keys(spatialGrid).length === 0) {
+				updateSpatialGrid();
+			}
+
 			if (year >= 1880) {
 				makeAxis();
 			}
@@ -197,7 +316,7 @@
 					const y = (p.height - bottomPadding) - ((p.height - bottomPadding) * (i/4.5));
 					p.noStroke();
 					p.text(i + "%", (p.width) - 2, y );
-					p.stroke("#82657d");
+					p.stroke("#452941");
 					p.strokeWeight(0.4);
 					p.line(0,y + 3,p.width,y + 3);
 				}
@@ -358,14 +477,24 @@
 
 			display() {
 				this.color.setAlpha(this.opacity);
+
+				// Add highlight for selected dot
+				// if (this === selectedDot) {
+				// 	// Draw selection ring
+				// 	p.noFill();
+				// 	p.stroke(255, 255, 255, this.opacity);
+				// 	p.strokeWeight(1);
+				// 	p.circle(this.pos.x, this.pos.y, this.size * 4);
+				// }
+
+				// Draw the dot
 				p.stroke(this.color);
+				p.strokeWeight(this.size);
 				p.point(this.pos.x, this.pos.y, this.size);
 			}
 		}
 	};
 </script>
-
-
 
 <P5 {sketch} />
 
@@ -373,5 +502,4 @@
 	:global(canvas) {
 		display: block;
 	}
-
 </style>

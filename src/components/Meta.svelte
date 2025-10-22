@@ -1,9 +1,9 @@
 <script>
 	let {
-		title_ = "Title TK",
-		description = "Description TK",
-		url = "https://pudding.cool",
-		keywords = "",
+		title_ = "In pursuit of democracy",
+		description = "Analyzing every mention of 'democracy' in the Congressional Record",
+		url = "https://pudding.cool/2025/10/democracy",
+		keywords = "democracy,congress,politics,trump",
 		preloadFont = []
 	} = $props();
 </script>

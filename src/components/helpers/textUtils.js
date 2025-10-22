@@ -34,7 +34,7 @@ function mapVisualToActual(text, visualPos) {
 }
 
 
-export function processText(text, lineLength, title, story) {
+export function processText(text, lineLength, title_, story) {
     if (story) {
         return { prologue: '', democracyRow: text.replace(/democracy/gi, '<span class="hl_word">$&</span>'), epilogue: '' };
     }
@@ -45,9 +45,6 @@ export function processText(text, lineLength, title, story) {
 
     const cleanedText = cleanText(text);
     let match = cleanedText.match(/\b(democracy)\b/i);
-    // if (title == "yes") {
-    //     match = cleanedText.match(/\b(alvin chang)\b/i);
-    // }
     
     if (!match) {
         // Fallback for text without the keyword.
@@ -75,9 +72,6 @@ export function processText(text, lineLength, title, story) {
 
     // --- 3. Combine into a single text string WITH HTML for calculations ---
     let fullTextContent = beforeText + match[0] + afterText;
-    if (title == "yes") {
-         // fullTextContent = " democracy".repeat(400) + " " + match[0] + " democracy".repeat(400);
-    }
     
     // --- 4. Calculate VISUAL boundaries on a plain-text version ---
     const visualText = fullTextContent.replace(/<[^>]*>/g, '');

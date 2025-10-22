@@ -1,6 +1,6 @@
 <script>
 	let {
-		title_ = "In pursuit of democracy",
+		title = "In pursuit of democracy",
 		description = "Analyzing every mention of 'democracy' in the Congressional Record",
 		url = "https://pudding.cool/2025/10/democracy",
 		keywords = "democracy,congress,politics,trump",
@@ -9,12 +9,12 @@
 </script>
 
 <svelte:head>
-	<title>{title_}</title>
+	<title>{title}</title>
 	<meta name="description" content={description} />
 	<meta name="author" content="The Pudding" />
 	<meta name="news_keywords" content={keywords} />
 
-	<meta property="og:title" content={title_} />
+	<meta property="og:title" content={title} />
 	<meta property="og:site_name" content="The Pudding" />
 	<meta property="og:url" content={url} />
 	<meta property="og:description" content={description} />
@@ -29,7 +29,7 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:site" content="https://pudding.cool" />
 	<meta name="twitter:creator" content="@puddingviz" />
-	<meta name="twitter:title" content={title_} />
+	<meta name="twitter:title" content={title} />
 	<meta name="twitter:description" content={description} />
 	<meta name="twitter:image:src" content="{url}/assets/social-twitter.jpg" />
 

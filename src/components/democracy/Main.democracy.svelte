@@ -8,7 +8,8 @@
 	import data from "$data/speeches_cleaned_2.json";
 	import {
 		processText,
-		convertChamber
+		convertChamber,
+		convertStates
 	} from "$components/helpers/textUtils.js";
 
 	let loading = $state(true);
@@ -377,9 +378,7 @@
 		bind:clientWidth={containerWidth}
 		bind:clientHeight={containerHeight}
 	>
-		{#if loading}
-			<div class="loading" transition:fade>Loading...</div>
-		{/if}
+
 		{#if mounted && currentRow && containerWidth > 0}
 			<Dots
 				{year}
@@ -397,7 +396,9 @@
 				onUpdate={(newLoading) => (loading = newLoading)}
 				onDotClick={handleDotClick}
 			/>
-			{#if year < 1880}
+			{#if loading}
+			<div class="loading" transition:fade>Loading...</div>
+			{:else if year < 1880}
 				<div class="headline_container" transition:fade>
 					<h1>
 						<span class="pretitle">in pursuit of</span>
@@ -503,7 +504,7 @@
 							{currentRow.firstname}
 							{currentRow.lastname}
 							{#if currentRow.party?.[0]}
-								({currentRow.party[0]}-{currentRow.state})
+								({currentRow.party[0]}-{convertStates(currentRow.state)})
 							{/if}
 						</div>
 					{/if}
@@ -780,7 +781,7 @@
 	.loading {
 		position: absolute;
 		left: 50%;
-		top: 30%;
+		top: 50%;
 		transform: translate(-50%, -50%);
 		color: white;
 		z-index: 9999999;

@@ -656,7 +656,7 @@ MAIN TEXT AREA
 	margin: 2px 10px 0px 0px;
 }
 .speakerImage img {
-	filter: sepia(100%) saturate(200%) brightness(80%) grayscale(20%) hue-rotate(260deg);
+	filter: sepia(100%) saturate(170%) brightness(80%) grayscale(20%) hue-rotate(260deg);
 }
 @media (max-width: 1200px) {
 .speakerImage {
@@ -777,7 +777,7 @@ BAR RIGHT SIDE
 }
 @media (max-width: 1100px) {
 .currentAnnotation {
-	left: 35px;
+	left: 20px;
 }
 }
 .threatLabel {

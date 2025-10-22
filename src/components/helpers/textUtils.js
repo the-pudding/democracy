@@ -162,3 +162,86 @@ export function convertChamber(c) {
     return c;
 }
 
+export function convertStates(c) {
+  // Return empty string for invalid input
+  if (!c || typeof c !== 'string') {
+    return '';
+  }
+
+  // Normalize input: trim whitespace and convert to uppercase for comparison
+  const input = c.trim().toUpperCase();
+
+  // State mapping object with all 50 states plus DC
+  const states = {
+    'ALABAMA': 'AL',
+    'ALASKA': 'AK',
+    'ARIZONA': 'AZ',
+    'ARKANSAS': 'AR',
+    'CALIFORNIA': 'CA',
+    'COLORADO': 'CO',
+    'CONNECTICUT': 'CT',
+    'DELAWARE': 'DE',
+    'FLORIDA': 'FL',
+    'GEORGIA': 'GA',
+    'HAWAII': 'HI',
+    'IDAHO': 'ID',
+    'ILLINOIS': 'IL',
+    'INDIANA': 'IN',
+    'IOWA': 'IA',
+    'KANSAS': 'KS',
+    'KENTUCKY': 'KY',
+    'LOUISIANA': 'LA',
+    'MAINE': 'ME',
+    'MARYLAND': 'MD',
+    'MASSACHUSETTS': 'MA',
+    'MICHIGAN': 'MI',
+    'MINNESOTA': 'MN',
+    'MISSISSIPPI': 'MS',
+    'MISSOURI': 'MO',
+    'MONTANA': 'MT',
+    'NEBRASKA': 'NE',
+    'NEVADA': 'NV',
+    'NEW HAMPSHIRE': 'NH',
+    'NEW JERSEY': 'NJ',
+    'NEW MEXICO': 'NM',
+    'NEW YORK': 'NY',
+    'NORTH CAROLINA': 'NC',
+    'NORTH DAKOTA': 'ND',
+    'OHIO': 'OH',
+    'OKLAHOMA': 'OK',
+    'OREGON': 'OR',
+    'PENNSYLVANIA': 'PA',
+    'RHODE ISLAND': 'RI',
+    'SOUTH CAROLINA': 'SC',
+    'SOUTH DAKOTA': 'SD',
+    'TENNESSEE': 'TN',
+    'TEXAS': 'TX',
+    'UTAH': 'UT',
+    'VERMONT': 'VT',
+    'VIRGINIA': 'VA',
+    'WASHINGTON': 'WA',
+    'WEST VIRGINIA': 'WV',
+    'WISCONSIN': 'WI',
+    'WYOMING': 'WY',
+    'DISTRICT OF COLUMBIA': 'DC',
+    'D.C.': 'DC',
+    'WASHINGTON D.C.': 'DC',
+    'WASHINGTON DC': 'DC'
+  };
+
+  // Check if input is already a valid abbreviation
+  const abbreviations = Object.values(states);
+  if (input.length === 2 && abbreviations.includes(input)) {
+    return input;
+  }
+
+  // Try to find the state name in the mapping
+  if (states[input]) {
+    return states[input];
+  }
+
+  // Return empty string if no match found
+  return '';
+}
+
+

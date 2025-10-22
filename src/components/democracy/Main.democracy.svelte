@@ -200,7 +200,7 @@
 	function scrollToStep(index) {
 		if (index !== null && stepElements[index]) {
 			// scrollIntoView with 'auto' behavior is instant
-			stepElements[index].scrollIntoView({ behavior: 'smooth', block: 'end' });
+			stepElements[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
 		}
 	}
 
@@ -636,6 +636,7 @@
 		border-radius: 4px;
 		color: var(--onedegree-color);;
 		font-family: var(--mono);
+		border-radius: 0px;
 	}
 	.step-nav-btn:hover {
 		border: 1px solid rgba(255, 255, 255, 1);
@@ -674,6 +675,10 @@
 		cursor: pointer;
 		border: none;
 		padding: 8px 12px;
+		border-radius: 0px;
+	}
+	.toggle button:nth-child(2) {
+		margin-left: -7px;
 	}
 	.toggle button:hover {
 		opacity: 0.9;
@@ -681,6 +686,17 @@
 	.toggle button.active {
 		color: white;
 		background: #66144c;
+	}
+	@media (max-width:1100px) {
+		.toggle button {
+		font-family: var(--mono);
+		background: var(--twodegree-color);
+		color: rgba(255, 255, 255, 0.4);
+		cursor: pointer;
+		border: none;
+		font-size: 12px;
+		padding: 5px 7px;
+	}
 	}
 	.progressBar {
 		position: absolute;

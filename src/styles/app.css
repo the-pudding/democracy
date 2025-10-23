@@ -352,6 +352,19 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	/* border: 1px solid black; */
 	background: var(--highlight-yellow);
 }
+.step .textContainer .hl.pulse::before {
+	position: absolute;
+	left: 0px;
+	top: calc(50% - 4px);
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	/* border: 1px solid black; */
+	background: var(--highlight-yellow);
+	animation: pulse-ripple 1.5s ease-out infinite;
+}
+
 .step .textContainer span.bright {
 	padding: 0px;
 	/* color: var(--highlight-yellow); */
@@ -774,7 +787,9 @@ BAR RIGHT SIDE
 	pointer-events: auto !important;
 	z-index: 999;
 	color: var(--onedegree-color);
+	top: 35%;
 }
+
 @media (max-width: 1100px) {
 .currentAnnotation {
 	left: 20px;
@@ -809,26 +824,46 @@ BAR RIGHT SIDE
 .pulldown {
 	color: white;
 	/* top: calc(41%); */
-	width: 200px;
 	font-size: 12px;
 	font-weight: 100;
-	margin-top: 10px;
+	margin: 10px 0;
 	pointer-events: auto !important;
 	z-index: 99999;
 	position: relative;
-
+	width: 170px;
+	height: 25px;
 }
 .pulldown select {
 	font-family: var(--mono);
-	/* background: var(--color-bg) !important; */
-	background: var(--color-bg) !important;
-/* 	border: 1px solid var(--highlight-muted-color);
-	color: var(--highlight-muted-color); */
-		border: 1px solid var(--highlight-yellow);
+	background: none !important;
 	color: var(--highlight-yellow);
 	padding: 7px 6px 7px 20px;
-	/* margin-left: 12px; */
+	width: 100%;
+	pointer-events: none !important;
+	outline: none;
+}
 
+.pulldown select:focus {
+	outline: none;
+}
+
+.explore .pulldown select {
+	border: 1px solid var(--highlight-yellow);
+	background: var(--color-bg) !important;
+	pointer-events: auto !important;
+}
+
+/* Ensure no outline even when explore is active and select is focused */
+.explore .pulldown select:focus {
+	outline: none;
+}
+.explore .pulldown::after {
+	content: "▼";
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-40%);
+	color: var(--highlight-yellow);
 }
 .pulldown select:focus {
 	 outline: 1px solid var(--highlight-yellow);
@@ -838,13 +873,35 @@ BAR RIGHT SIDE
 	color: var(--highlight-yellow);
 	top: 50%;
 	left: 6px;
-	transform: translateY(-50%);
+	transform: translateY(-20%);
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
 	background: var(--highlight-yellow);
 }
+.threatChange .pulldown .dot::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: var(--highlight-yellow);
+  border-radius: 50%;
 
+  /* Apply the animation */
+  animation: pulse-ripple 1.5s ease-out infinite;
+}
+@keyframes pulse-ripple {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(2); /* Controls how large the pulse gets */
+    opacity: 0.6;
+  }
+}
 .debug {
 	color: white;
 	position: fixed;

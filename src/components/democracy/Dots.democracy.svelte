@@ -15,7 +15,7 @@
 		prefersReducedMotion,
 		loading,
 		onUpdate,
-		onDotClick = null  // Add this new prop for handling dot clicks
+		onDotClick = null // Add this new prop for handling dot clicks
 	} = $props();
 
 	const startYear = 1800;
@@ -29,7 +29,7 @@
 
 	// vars
 	let atlasGrotesk;
-	const defaultColors = {"none": [220, 120, 200], "categorized": [63, 27, 72]};
+	const defaultColors = { none: [220, 120, 200], categorized: [63, 27, 72] };
 	let defaultColor = [220, 120, 200];
 	// const hlColor = [255, 174, 107];
 	// const threatColor = [247, 106, 233];
@@ -44,6 +44,9 @@
 	let oldContainerWidth = containerWidth;
 	let oldContainerHeight = containerHeight;
 
+	// ADDED: State variable to track the year to highlight
+	let highlightedYear = $state(null);
+
 	const decade_themes = {
 		// ... (data unchanged)
 	};
@@ -56,7 +59,7 @@
 		let dotsPerYear = {};
 
 		// Spatial grid variables for efficient click detection
-		let selectedDot = null;
+		let selectedDot = null; // This will still track if a *specific dot* was clicked in explore mode
 		let spatialGrid = {};
 		let gridCellSize = 20; // Adjust based on your dot density
 
@@ -95,12 +98,16 @@
 				yearGroup.sort((a, b) => {
 					const aHasThreat = a.themes.includes("threat_general");
 					const bHasThreat = b.themes.includes("threat_general");
-					const aHasSelected = selectedCategory === "threat_policy"
-						? (a.themes.includes("threat_systemic_policy") || a.themes.includes("threat_demographic_identity"))
-						: a.themes.includes(selectedCategory);
-					const bHasSelected = selectedCategory === "threat_policy"
-						? (b.themes.includes("threat_systemic_policy") || b.themes.includes("threat_demographic_identity"))
-						: b.themes.includes(selectedCategory);
+					const aHasSelected =
+						selectedCategory === "threat_policy"
+							? a.themes.includes("threat_systemic_policy") ||
+								a.themes.includes("threat_demographic_identity")
+							: a.themes.includes(selectedCategory);
+					const bHasSelected =
+						selectedCategory === "threat_policy"
+							? b.themes.includes("threat_systemic_policy") ||
+								b.themes.includes("threat_demographic_identity")
+							: b.themes.includes(selectedCategory);
 					if (aHasThreat && !bHasThreat) return -1;
 					if (!aHasThreat && bHasThreat) return 1;
 					if (aHasSelected && !bHasSelected) return -1;
@@ -161,56 +168,104 @@
 					dot.acc.mult(0);
 					// Don't set arrived = true so dots can still update
 					// Set opacity instantly based on whether dot is in future or not
-					dot.opacity = dot.isFuture ? 0 : (barChart ? 255 : 200);
+					dot.opacity = dot.isFuture ? 0 : barChart ? 255 : 200;
 				}
 			}
 		};
 
-		// Efficient click detection using spatial grid
+		// --- START: MODIFIED p.mousePressed FUNCTION ---
 		p.mousePressed = () => {
-			if (p.mouseX < 0 || p.mouseX > p.width || p.mouseY < 0 || p.mouseY > p.height || year < 2026) {
-				return;
+			// First, check if the click is inside the canvas at all
+			if (p.mouseX < 0 || p.mouseX > p.width || p.mouseY < 0 || p.mouseY > p.height) {
+				return; // Click is outside canvas
 			}
 
-			selectedDot = null;
+			let dotClicked = false;
+			selectedDot = null; // Clear any previous specific dot selection
 
-			// Check only nearby grid cells
-			const gridX = Math.floor(p.mouseX / gridCellSize);
-			const gridY = Math.floor(p.mouseY / gridCellSize);
+			// ---
+			// BEHAVIOR 1: "Explore Mode" (year >= 2026) -> Try to click a dot first.
+			// ---
+			if (year >= 2026) {
+				// Check only nearby grid cells
+				const gridX = Math.floor(p.mouseX / gridCellSize);
+				const gridY = Math.floor(p.mouseY / gridCellSize);
 
-			// Check the clicked cell and adjacent cells
-			for (let dx = -1; dx <= 1; dx++) {
-				for (let dy = -1; dy <= 1; dy++) {
-					const key = `${gridX + dx},${gridY + dy}`;
-					const cellDots = spatialGrid[key];
+				// Search loop for specific dot
+				for (let dx = -1; dx <= 1; dx++) {
+					for (let dy = -1; dy <= 1; dy++) {
+						const key = `${gridX + dx},${gridY + dy}`;
+						const cellDots = spatialGrid[key];
 
-					if (cellDots) {
-						for (let dot of cellDots) {
-							const distance = p.dist(p.mouseX, p.mouseY, dot.pos.x, dot.pos.y);
-							if (distance < dot.size + 2) {
-								selectedDot = dot;
+						if (cellDots) {
+							for (let dot of cellDots) {
+								const distance = p.dist(p.mouseX, p.mouseY, dot.pos.x, dot.pos.y);
+								if (distance < dot.size + 2) {
+									selectedDot = dot; // Select the dot
+									dotClicked = true; // Mark that we found one
 
-								// Log to console
-								// console.log('Clicked dot themes:', dot.themes);
-								// console.log('Year:', dot.year, 'Month:', dot.month);
-								// console.log('Total count:', dot.total);
+									// Call external handler with full dot data
+									if (onDotClick) {
+										onDotClick({
+											themes: dot.themes,
+											year: dot.year,
+											month: dot.month,
+											total: dot.total
+										});
+									}
+									// Update highlightedYear here too
+									highlightedYear = dot.year;
 
-								// Call external handler if provided
-								if (onDotClick) {
-									onDotClick({
-										themes: dot.themes,
-										year: dot.year,
-										month: dot.month,
-										total: dot.total
-									});
+									// We found our dot, so we can exit the search loops
+									break;
 								}
-								return; // Exit early when found
 							}
 						}
+						if (dotClicked) break; // Exit outer dy loop
 					}
+					if (dotClicked) break; // Exit outer dx loop
 				}
 			}
+
+			// ---
+			// BEHAVIOR 2: Fallback Year Calculation (or primary for Story Mode)
+			// This runs if:
+			// 1. We are in "Story Mode" (year < 2026), OR
+			// 2. We are in "Explore Mode" (year >= 2026) but did NOT click a dot.
+			// ---
+			if (!dotClicked) {
+				// 1. Get the chart width
+				const chartWidth = p.width - sidePadding * 2;
+
+				// 2. Constrain the click to the horizontal bounds of the chart
+				const clickX = p.constrain(p.mouseX - sidePadding, 0, chartWidth);
+
+				// 3. Convert the pixel x-coordinate to a normalized value (0-1)
+				const normX = clickX / chartWidth;
+
+				// 4. Invert the yearToXAxis formula to find the year
+				const clickedYearFractional = normX * 155 + 1875;
+
+				// 5. Floor the result to get an integer year
+				const clickedYear = Math.floor(clickedYearFractional);
+
+				// 6. Constrain the year to the valid axis range
+				const finalYear = p.constrain(clickedYear, 1880, 2030);
+
+				// 7. Call the onDotClick handler with just the year.
+				if (onDotClick) {
+					onDotClick({
+						year: finalYear,
+						themes: null,
+						month: null,
+						total: null
+					});
+				}
+				// Update highlightedYear here too, even if no specific dot was clicked
+				highlightedYear = finalYear;
+			}
 		};
+		// --- END: MODIFIED p.mousePressed FUNCTION ---
 
 		p.windowResized = () => {
 			resizeCanvas();
@@ -239,6 +294,8 @@
 			// Clear selection if year or month changed
 			if (year !== lastYear || month !== lastMonth) {
 				selectedDot = null;
+				// ADDED: Clear highlightedYear when the main 'year' prop changes (e.g., on scroll)
+				highlightedYear = null;
 				lastYear = year;
 				lastMonth = month;
 			}
@@ -257,18 +314,21 @@
 			}
 			p.background(11, 0, 13);
 
-			// Draw year highlight rectangle if a dot is selected
-			if (selectedDot) {
+			// --- START: MODIFIED HIGHLIGHT RECTANGLE DRAWING ---
+			// Draw year highlight rectangle if any year is highlighted
+			if (highlightedYear) {
 				p.noStroke();
 				p.fill(255, 255, 255, 20); // White with low opacity
-				const yearX = yearToXAxis(selectedDot.year) * (p.width - sidePadding * 2);
+				const yearX = yearToXAxis(highlightedYear) * (p.width - sidePadding * 2) + sidePadding;
 				// Calculate width to next year (or use a fixed width for the last year)
-				const nextYearX = selectedDot.year < 2020
-					? yearToXAxis(selectedDot.year + 1) * (p.width - sidePadding * 2)
-					: yearX + ((p.width - sidePadding * 2) / 155); // Approximate width for last year
+				const nextYearX =
+					highlightedYear < 2020
+						? yearToXAxis(highlightedYear + 1) * (p.width - sidePadding * 2) + sidePadding
+						: yearX + (p.width - sidePadding * 2) / 155; // Approximate width for last year
 				const rectWidth = nextYearX - yearX;
-				p.rect(yearX - rectWidth/2, 0, rectWidth, p.height - bottomPadding);
+				p.rect(yearX - rectWidth / 2, 0, rectWidth, p.height - bottomPadding);
 			}
+			// --- END: MODIFIED HIGHLIGHT RECTANGLE DRAWING ---
 
 			decade = String(Math.floor(year / 10) * 10);
 			for (let dot of dots) {
@@ -291,8 +351,9 @@
 			onUpdate(false);
 			p.stroke("#784f72");
 			p.strokeWeight(1);
-			displayYear = p.lerp(displayYear,Number(year),0.2);
-			p.line(yearToXAxis(displayYear)* (p.width - sidePadding),0,yearToXAxis(displayYear)* (p.width - sidePadding),containerHeight - bottomPadding);
+			displayYear = p.lerp(displayYear, Number(year), 0.2);
+			const lineX = yearToXAxis(displayYear) * (p.width - sidePadding*2) + sidePadding;
+			p.line(lineX, 0, lineX, containerHeight - bottomPadding);
 			// p.fill("#ffffff");
 			// p.text(displayYear,p.width/2,p.height/2);
 		};
@@ -307,24 +368,26 @@
 				interval = 20;
 			}
 			for (let i = 1880; i <= 2020; i += interval) {
-				p.text(i, yearToXAxis(i) * (p.width - sidePadding*2), p.height - 10);
+				const xPos = yearToXAxis(i) * (p.width - sidePadding * 2) + sidePadding;
+				p.text(i, xPos, p.height - 10);
 			}
 			if (!barChart) {
 				for (let i = 0; i <= 4; i += 0.5) {
 					p.textAlign(p.RIGHT);
 					p.textSize(p.constrain(p.width / 100, 12, 15));
-					const y = (p.height - bottomPadding) - ((p.height - bottomPadding) * (i/4.5));
+					const y = p.height - bottomPadding - (p.height - bottomPadding) * (i / 4.5);
 					p.noStroke();
-					p.text(i + "%", (p.width) - 2, y );
+					p.text(i + "%", p.width - 2, y);
 					p.stroke("#452941");
 					p.strokeWeight(0.4);
-					p.line(0,y + 3,p.width,y + 3);
+					p.line(0, y + 3, p.width, y + 3);
 				}
 			}
 		}
 
 		function yearToXAxis(y) {
-			return (155 - (2030 - y)) / 155;
+			// (year - 1875) / 155
+			return (y - 1875) / 155;
 		}
 
 		class Dot {
@@ -332,7 +395,10 @@
 				this.year = _year;
 				this.month = _month;
 				this.themes = themes;
-				this.pos = p.createVector((p.width - sidePadding*2) * Math.random(), p.height * Math.random());
+				this.pos = p.createVector(
+					p.random(sidePadding, p.width - sidePadding),
+					p.random(0, p.height - bottomPadding)
+				);
 				this.targetPos = p.createVector(this.pos.x, this.pos.y);
 				this.vel = p.createVector(0, 0);
 				this.acc = p.createVector(0, 0);
@@ -346,8 +412,8 @@
 				this.color = p.color(defaultColor[0], defaultColor[1], defaultColor[2]);
 				this.targetColor = defaultColor;
 				this.isFuture = true;
-				this.centerX = (p.width - sidePadding*2) * Math.random();
-				this.centerY = p.height * Math.random();
+				this.centerX = p.random(sidePadding, p.width - sidePadding);
+				this.centerY = p.random(0, p.height - bottomPadding);
 				this.loaded = false;
 				this.maxAreaHeight = all_speeches[_year].percentage;
 			}
@@ -394,7 +460,7 @@
 			move() {
 				this.isFuture = this.year > year || (this.year === year && this.month >= month);
 				if (year < 1880 && this.year < 1890) {
-					const radius = p.min((p.width - sidePadding*2), p.height);
+					const radius = p.min(p.width - sidePadding * 2, p.height);
 					const totalDotsIn1880 = 50;
 					const initialAngle = p.map(this.num, 0, totalDotsIn1880, 0, p.TWO_PI);
 					const rotationAngle = p.frameCount * Math.random() * 10;
@@ -406,14 +472,15 @@
 					this.opacity = p.lerp(this.opacity, 255, 0.1);
 				} else if (this.isFuture) {
 					this.targetPos.set(
-						(p.width - sidePadding*2) / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
+						p.width / 2 - transcriptWidth / 2 + Math.random() * transcriptWidth,
 						p.height / 4
 					);
 					this.opacity = p.lerp(this.opacity, 0, 0.1);
 				} else {
-					const targetX = yearToXAxis(this.year) * (p.width - sidePadding*2);
+					const targetX =
+						yearToXAxis(this.year) * (p.width - sidePadding * 2) + sidePadding;
 					if (barChart) {
-						const numColumns = (p.width - sidePadding*2) > 1300 ? 2 : 1;
+						const numColumns = p.width - sidePadding * 2 > 1300 ? 2 : 1;
 						const rowIndex = Math.floor(this.num / numColumns);
 						const colIndex = this.num % numColumns;
 						const xOffsetFactor = colIndex - (numColumns - 1) / 2;
@@ -447,16 +514,19 @@
 
 			setDisplay() {
 				this.targetColor = defaultColor;
-				const themesToCheck = selectedCategory === "threat_policy"
-					? ["threat_systemic_policy", "threat_demographic_identity"]
-					: [selectedCategory];
-				const hasSelectedTheme = themesToCheck.some(theme => this.themes.includes(theme));
+				const themesToCheck =
+					selectedCategory === "threat_policy"
+						? ["threat_systemic_policy", "threat_demographic_identity"]
+						: [selectedCategory];
+				const hasSelectedTheme = themesToCheck.some((theme) =>
+					this.themes.includes(theme)
+				);
 				if (selectedCategory == "none" && year >= startYear && this.themes.length > 0) {
 					this.targetColor = hlColor;
-					this.size = hlSize
+					this.size = hlSize;
 				} else if (hasSelectedTheme && year >= startYear) {
 					this.targetColor = hlColor;
-					this.size = hlSize
+					this.size = hlSize;
 				} else if (this.themes.includes("threat_general") && year >= startYear) {
 					this.targetColor = threatColor;
 					this.size = dotSize;
@@ -464,7 +534,7 @@
 					this.size = dotSize;
 				}
 				if (!barChart) {
-					this.size = dotSize*1.5;
+					this.size = dotSize * 1.5;
 				}
 				let target = p.color(
 					this.targetColor[0],

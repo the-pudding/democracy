@@ -36,7 +36,7 @@
 	let barChart = $state(true);
 	const categories = {
 		none: "Any threat",
-		threat_policy: "Policy/practices threat",
+		threat_policy: "Policy threat",
 		threat_external: "External threat",
 		threat_internal: "Government threat"
 	};
@@ -67,9 +67,35 @@
 
 	// Handle dot clicks to find and display a speech
 	function handleDotClick(dotData) {
-		const myObject = data[dotData.year];
-		const randomValue = myObject[Object.keys(myObject)[Math.floor(Math.random() * Object.keys(myObject).length)]];
-		selectedSpeech = randomValue;
+		const speechesByMonth = data[dotData.year];
+
+		// 1. Get all speeches for the year into an array
+		const allSpeeches = Object.values(speechesByMonth);
+
+		if (allSpeeches.length === 0) {
+			// console.warn(`No speeches found for year ${dotData.year}`);
+			return;
+		}
+
+		let speechesToChooseFrom = allSpeeches; // Default to all speeches
+
+		// 2. If a specific category is selected, try to filter
+		if (selectedCategory !== "none") {
+			const matchingSpeeches = allSpeeches.filter(speech =>
+				speech.themes && speech.themes.includes(selectedCategory)
+			);
+
+			// 3. If we found speeches that match the category, use that filtered list
+			if (matchingSpeeches.length > 0) {
+				speechesToChooseFrom = matchingSpeeches;
+			}
+			// If no matches were found, speechesToChooseFrom remains `allSpeeches`,
+			// fulfilling the "if possible" requirement (it wasn't possible).
+		}
+
+		// 4. Select a random speech from the chosen list (either all or filtered)
+		const randomIndex = Math.floor(Math.random() * speechesToChooseFrom.length);
+		selectedSpeech = speechesToChooseFrom[randomIndex];
 	}
 
 	// Process data immediately (not in onMount)
@@ -202,6 +228,32 @@
 		if (index !== null && stepElements[index]) {
 			// scrollIntoView with 'auto' behavior is instant
 			stepElements[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}
+
+	// ADDED: Handle left/right arrow key navigation
+	function handleKeydown(event) {
+		// Get the navigation map for the currently active step
+		// currentStepIndex is already a $derived value, so it's always up-to-date
+		const nav = validStepNavMap[currentStepIndex];
+
+		// If the current step isn't a valid text step (no nav info), do nothing
+		if (!nav) {
+			return;
+		}
+
+		if (event.key === 'ArrowLeft') {
+			// If a 'previous' step exists
+			if (nav.prev !== null) {
+				event.preventDefault(); // Stop browser from scrolling
+				scrollToStep(nav.prev);
+			}
+		} else if (event.key === 'ArrowRight') {
+			// If a 'next' step exists
+			if (nav.next !== null) {
+				event.preventDefault(); // Stop browser from scrolling
+				scrollToStep(nav.next);
+			}
 		}
 	}
 
@@ -368,13 +420,15 @@
 	}
 </script>
 
-<svelte:window on:scroll={handleScroll} />
+<svelte:window on:scroll={handleScroll} on:keydown={handleKeydown}/>
 
 <section id="scrolly">
 	<div
 		class="visualContainer"
 		class:annotate={currentRow?.annotate}
 		class:story={showStoryElements}
+		class:explore={year==2026 && month==2}
+		class:threatChange={selectedCategory!="none"}
 		bind:clientWidth={containerWidth}
 		bind:clientHeight={containerHeight}
 	>
@@ -414,7 +468,6 @@
 			{#if currentAnnotation}
 				<div
 					class="currentAnnotation"
-					style="top:{100 - heightRatio * 100}%;"
 					transition:fade
 				>
 					{#if currentRow?.year >= 1800}
@@ -696,7 +749,7 @@
 		cursor: pointer;
 		border: none;
 		font-size: 12px;
-		padding: 5px 7px;
+		padding: 8px 7px;
 	}
 	}
 	.progressBar {

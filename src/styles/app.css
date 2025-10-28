@@ -352,6 +352,17 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	/* border: 1px solid black; */
 	background: var(--highlight-yellow);
 }
+.step .textContainer .hl.pulse::after  {
+		position: absolute;
+	left: 0px;
+	top: calc(50% - 4px);
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	/* border: 1px solid black; */
+	background: var(--highlight-yellow);
+}
 .step .textContainer .hl.pulse::before {
 	position: absolute;
 	left: 0px;
@@ -362,7 +373,7 @@ transition-timing-function: cubic-bezier(0.220, -0.005, 0.035, 1.080); /* custom
 	border-radius: 50%;
 	/* border: 1px solid black; */
 	background: var(--highlight-yellow);
-	animation: pulse-ripple 1.5s ease-out infinite;
+	animation: pulse-ripple 1.5s ease infinite;
 }
 
 .step .textContainer span.bright {
@@ -890,16 +901,16 @@ BAR RIGHT SIDE
   border-radius: 50%;
 
   /* Apply the animation */
-  animation: pulse-ripple 1.5s ease-out infinite;
+  animation: pulse-ripple 1.5s ease infinite;
 }
 @keyframes pulse-ripple {
-  0%, 100% {
+  0% {
     transform: scale(1);
     opacity: 1;
   }
-  50% {
-    transform: scale(2); /* Controls how large the pulse gets */
-    opacity: 0.6;
+  100% {
+    transform: scale(9); /* Controls how large the pulse gets */
+    opacity: 0;
   }
 }
 .debug {

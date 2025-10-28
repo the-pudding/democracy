@@ -186,7 +186,8 @@
 			// ---
 			// BEHAVIOR 1: "Explore Mode" (year >= 2026) -> Try to click a dot first.
 			// ---
-			if (year >= 2026) {
+
+			if (Number(year) >= 2026) {
 				// Check only nearby grid cells
 				const gridX = Math.floor(p.mouseX / gridCellSize);
 				const gridY = Math.floor(p.mouseY / gridCellSize);
@@ -233,7 +234,7 @@
 			// 1. We are in "Story Mode" (year < 2026), OR
 			// 2. We are in "Explore Mode" (year >= 2026) but did NOT click a dot.
 			// ---
-			if (!dotClicked) {
+			if (!dotClicked && year > 2025) {
 				// 1. Get the chart width
 				const chartWidth = p.width - sidePadding * 2;
 
@@ -353,7 +354,7 @@
 			p.strokeWeight(1);
 			displayYear = p.lerp(displayYear, Number(year), 0.2);
 			const lineX = yearToXAxis(displayYear) * (p.width - sidePadding*2) + sidePadding;
-			p.line(lineX, 0, lineX, containerHeight - bottomPadding);
+			// p.line(lineX, 0, lineX, containerHeight - bottomPadding);
 			// p.fill("#ffffff");
 			// p.text(displayYear,p.width/2,p.height/2);
 		};

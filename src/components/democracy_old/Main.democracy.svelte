@@ -1,6 +1,6 @@
 <script>
-	import Image from "$components/democracy/Image.democracy.svelte";
-	import Text from "$components/democracy/Text.democracy.svelte";
+	import Image from "$components/democracy_old/Image.democracy.svelte";
+	import Text from "$components/democracy_old/Text.democracy.svelte";
 	import Scrolly from "$components/helpers/Scrolly.svelte";
 	import { fade } from 'svelte/transition';
 	
